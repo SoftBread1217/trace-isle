@@ -1,0 +1,6 @@
+{
+  "name": "trace-isle",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test tests/route.test.mjs" }
+}
