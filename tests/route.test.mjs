@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { decodeRoute, encodeRoute, makeRoute, normalizePoints, sampleAt } from '../route.js';
+import { advancePlayback, decodeRoute, encodeRoute, makeRoute, normalizePoints, sampleAt, sampleAtDistance, setRouteSpeed } from '../route.js';
 
 test('rejects coordinates outside the supported ranges and drops neighboring duplicates', () => {
   assert.deepEqual(normalizePoints([[12, 34], [12, 34], [13, 34]]), [[12, 34], [13, 34]]);
@@ -29,4 +29,21 @@ test('shares the route and speed and rejects corrupted fragment data', () => {
   assert.deepEqual(decodeRoute(encodeRoute(route)), route);
   assert.throws(() => decodeRoute('not a route'), /路线链接/);
   assert.throws(() => encodeRoute({ ...route, speed: 0 }), /速度/);
+});
+
+test('changing live speed preserves position and elapsed time, then uses the new speed', () => {
+  const route = makeRoute([[0, 0], [0, 0.01]], 3.6);
+  const current = advancePlayback(route, { metres: 0, elapsed: 0 }, 20);
+  assert.deepEqual(current, { metres: 20, elapsed: 20 });
+  const fast = setRouteSpeed(route, 10.8);
+  assert.deepEqual(sampleAtDistance(fast, current.metres), sampleAtDistance(route, current.metres));
+  assert.deepEqual(advancePlayback(fast, current, 10), { metres: 50, elapsed: 30 });
+});
+
+test('elapsed time stops exactly at the route end, including a stationary point', () => {
+  const route = makeRoute([[0, 0], [0, 0.001]], 3.6);
+  const final = advancePlayback(route, { metres: route.metres - 3, elapsed: 20 }, 10);
+  assert.deepEqual(final, { metres: route.metres, elapsed: 23 });
+  const stationary = makeRoute([[12, 34]], 8);
+  assert.deepEqual(advancePlayback(stationary, { metres: 0, elapsed: 0 }, 10), { metres: 0, elapsed: 0 });
 });

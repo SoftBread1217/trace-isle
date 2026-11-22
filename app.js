@@ -1,4 +1,5 @@
-import { decodeRoute, encodeRoute, makeRoute, MAX_POINTS, normalizePoints, sampleAt, wrapLongitude } from './route.js';
+import { advancePlayback, decodeRoute, encodeRoute, makeRoute, MAX_POINTS, normalizePoints,
+  sampleAtDistance, setRouteSpeed, wrapLongitude } from './route.js';
 
 const $ = id => document.getElementById(id);
 const L = window.L;
@@ -18,7 +19,11 @@ tiles.on('tileload', () => { $('map-status').textContent = ''; });
 let route = makeRoute([], 5);
 let title = '';
 let drawing = false;
-let elapsed = 0;
+let pickingFixed = false;
+let fixedPoint = null;
+const initialMotion = () => ({ metres: 0, elapsed: 0 });
+let motion = initialMotion();
+let playbackRate = Number($('rate').value);
 let mode = 'ready';
 let frame = null;
 let lastTick = null;
@@ -53,42 +58,59 @@ function visiblePoints(points) {
 }
 
 function paintSample() {
-  const sample = sampleAt(route, elapsed);
+  const sample = fixedPoint ? { point: fixedPoint, metres: 0 } : sampleAtDistance(route, motion.metres);
   if (sample) {
     const [lat, lon] = sample.point;
     $('lat-readout').textContent = lat.toFixed(6);
     $('lon-readout').textContent = lon.toFixed(6);
     $('distance-readout').textContent = formatDistance(sample.metres);
+    $('speed-readout').textContent = `${!fixedPoint && mode === 'playing' ? route.speed.toFixed(1) : '0.0'} km/h`;
     const viewed = map.getCenter().lng;
     cursor.setLatLng([lat, viewed + wrapLongitude(lon - viewed)]);
     if (!map.hasLayer(cursor)) cursor.addTo(map);
   } else {
-    for (const id of ['lat-readout', 'lon-readout', 'distance-readout']) $(id).textContent = '—';
+    for (const id of ['lat-readout', 'lon-readout', 'distance-readout', 'speed-readout']) $(id).textContent = '—';
     cursor.remove();
   }
-  $('elapsed').textContent = `${formatClock(elapsed)} / ${formatClock(route.seconds)}`;
-  $('progress').value = route.seconds ? String(Math.round(1000 * elapsed / route.seconds)) : '0';
+  const remaining = Math.max(0, route.metres - motion.metres) / (route.speed / 3.6);
+  $('total-time').textContent = fixedPoint || !route.points.length ? '—' : formatClock(Math.ceil(remaining));
+  $('elapsed').textContent = fixedPoint ? '定点模式' : `已用 ${formatClock(motion.elapsed)}`;
+  $('progress').value = !fixedPoint && route.metres ? String(Math.round(1000 * motion.metres / route.metres)) : '0';
 }
 
 function syncControls() {
   const count = route.points.length;
   $('state').textContent = ({ ready: '就绪', playing: '播放中', paused: '已暂停', done: '已结束', fixed: '固定点已发送' })[mode];
   if (!count) $('state').textContent = '等待路线';
-  if (mode === 'playing') $('play').textContent = '暂停';
+  if (fixedPoint) {
+    $('state').textContent = '固定定位';
+    $('play').textContent = '固定点已应用';
+  } else if (mode === 'playing') $('play').textContent = '暂停';
   else if (count === 1) $('play').textContent = '发送固定点';
   else if (mode === 'paused') $('play').textContent = '继续';
   else if (mode === 'done') $('play').textContent = '重新播放';
   else $('play').textContent = '播放';
-  for (const id of ['play', 'share', 'export', 'undo', 'clear', 'reset']) $(id).disabled = !count;
-  $('progress').disabled = !route.seconds;
+  for (const id of ['share', 'export']) $(id).disabled = !(count || fixedPoint);
+  for (const id of ['undo', 'clear']) $(id).disabled = !count;
+  for (const id of ['play', 'reset']) {
+    $(id).hidden = Boolean(fixedPoint);
+    $(id).disabled = !count;
+  }
+  for (const id of ['speed', 'speed-slider', 'rate']) $(id).disabled = Boolean(fixedPoint);
+  $('return-to-route').hidden = !fixedPoint;
+  $('progress').disabled = !route.metres || Boolean(fixedPoint);
   $('draw').setAttribute('aria-pressed', String(drawing));
   $('draw').textContent = drawing ? '结束加点' : '地图加点';
-  $('map-hint').hidden = !drawing;
-  $('map').classList.toggle('drawing', drawing);
+  $('pick-fixed').setAttribute('aria-pressed', String(pickingFixed));
+  $('map-hint').hidden = !drawing && !pickingFixed;
+  $('map-hint').textContent = pickingFixed ? '点地图应用固定位置' : '点击地图添加坐标点';
+  $('map').classList.toggle('drawing', drawing || pickingFixed);
   $('route-name').textContent = title || '用地图或经纬度添加坐标';
   $('point-count').textContent = `${count} 个点`;
-  $('total-distance').textContent = count ? formatDistance(route.metres) : '—';
-  $('total-time').textContent = count ? formatClock(Math.ceil(route.seconds)) : '—';
+  $('total-distance').textContent = fixedPoint ? '0 m' : count ? formatDistance(route.metres) : '—';
+  for (const button of document.querySelectorAll('[data-speed-step]')) {
+    button.disabled = Boolean(fixedPoint) || (Number(button.dataset.speedStep) < 0 ? route.speed <= 1 : route.speed >= 120);
+  }
 }
 
 function stopFrame() {
@@ -101,11 +123,14 @@ function changeRoute(points, name, { speed = route.speed, fit = false } = {}) {
   const next = makeRoute(points, speed);
   importRevision++;
   stopFrame();
-  elapsed = 0;
+  fixedPoint = null;
+  pickingFixed = false;
+  motion = initialMotion();
   mode = 'ready';
   title = next.points.length ? name : '';
   route = next;
   $('speed').value = String(speed);
+  $('speed-slider').value = String(speed);
   const positions = visiblePoints(route.points);
   routeLine.setLatLngs(positions);
   pins.clearLayers();
@@ -118,27 +143,34 @@ function changeRoute(points, name, { speed = route.speed, fit = false } = {}) {
   syncControls();
 }
 
-function tick(now) {
+function advanceTo(now) {
   if (mode !== 'playing') return;
-  if (lastTick !== null) elapsed = Math.min(route.seconds, elapsed + (now - lastTick) / 1000 * Number($('rate').value));
-  lastTick = now;
-  if (now - lastPaint >= 75 || elapsed >= route.seconds) {
-    paintSample();
-    lastPaint = now;
+  if (lastTick === null) lastTick = now;
+  if (now > lastTick) {
+    motion = advancePlayback(route, motion, (now - lastTick) / 1000 * playbackRate);
+    lastTick = now;
   }
-  if (elapsed >= route.seconds) {
+  if (motion.metres >= route.metres) {
     stopFrame();
     mode = 'done';
     syncControls();
-    return;
   }
-  frame = requestAnimationFrame(tick);
+}
+
+function tick(now) {
+  advanceTo(now);
+  if (now - lastPaint >= 75 || mode === 'done') {
+    paintSample();
+    lastPaint = now;
+  }
+  if (mode === 'playing') frame = requestAnimationFrame(tick);
 }
 
 function pause() {
   if (mode !== 'playing') return;
+  advanceTo(performance.now());
   stopFrame();
-  mode = 'paused';
+  if (mode === 'playing') mode = 'paused';
   paintSample();
   syncControls();
 }
@@ -146,6 +178,32 @@ function pause() {
 function appendPoint(point) {
   changeRoute([...route.points, point], '手绘路线');
   notify('');
+}
+
+function applyFixedPoint(point, { centre = true } = {}) {
+  const [fixed] = normalizePoints([point]);
+  pause();
+  importRevision++;
+  fixedPoint = fixed;
+  drawing = false;
+  pickingFixed = false;
+  $('latitude').value = fixed[0].toFixed(6);
+  $('longitude').value = fixed[1].toFixed(6);
+  if (centre) map.setView(fixed, Math.max(map.getZoom(), 16));
+  paintSample();
+  syncControls();
+  notify('固定位置已发送到页面的定位接收器。');
+}
+
+function setSpeed(speed, source) {
+  if (fixedPoint || speed === route.speed) return;
+  const next = setRouteSpeed(route, speed);
+  advanceTo(performance.now());
+  route = next;
+  if (source !== 'number') $('speed').value = String(speed);
+  $('speed-slider').value = String(speed);
+  paintSample();
+  syncControls();
 }
 
 function setBasemap() {
@@ -174,59 +232,88 @@ function readGPX(text) {
 
 $('play').onclick = () => {
   if (mode === 'playing') return pause();
-  if (!route.points.length) return;
+  if (!route.points.length || fixedPoint) return;
   drawing = false;
-  if (!route.seconds) {
+  pickingFixed = false;
+  if (!route.metres) {
     mode = 'fixed';
     paintSample();
   } else {
-    if (elapsed >= route.seconds) elapsed = 0;
+    if (motion.metres >= route.metres) motion = initialMotion();
     mode = 'playing';
+    lastTick = performance.now();
     paintSample();
     frame = requestAnimationFrame(tick);
   }
   syncControls();
 };
-$('reset').onclick = () => { stopFrame(); mode = 'ready'; elapsed = 0; paintSample(); syncControls(); };
+$('reset').onclick = () => { stopFrame(); mode = 'ready'; motion = initialMotion(); paintSample(); syncControls(); };
+$('return-to-route').onclick = () => {
+  fixedPoint = null;
+  if (route.points.length === 1) map.setView(route.points[0], 17);
+  if (route.points.length > 1) map.fitBounds(routeLine.getBounds(), { padding: [35, 35], maxZoom: 17 });
+  paintSample();
+  syncControls();
+  notify('');
+};
 $('progress').oninput = () => {
   stopFrame();
-  elapsed = Number($('progress').value) / 1000 * route.seconds;
-  mode = elapsed === route.seconds ? 'done' : 'paused';
+  const fraction = Number($('progress').value) / 1000;
+  motion = { metres: fraction * route.metres, elapsed: fraction * route.seconds };
+  mode = fraction === 1 ? 'done' : 'paused';
   paintSample();
   syncControls();
 };
+$('speed').oninput = () => {
+  if ($('speed').validity.valid && $('speed').value) setSpeed($('speed').valueAsNumber, 'number');
+};
 $('speed').onchange = () => {
-  const fraction = route.seconds ? elapsed / route.seconds : 0;
   try {
-    const updated = makeRoute(route.points, Number($('speed').value));
-    route = updated;
-    elapsed = fraction * updated.seconds;
-    lastTick = null;
-    paintSample();
-    syncControls();
+    if (!$('speed').validity.valid) throw new Error('请输入 1–120 公里/小时，最多保留一位小数。');
+    setSpeed($('speed').valueAsNumber);
+    $('speed').value = String(route.speed);
     notify('');
   } catch (error) {
     $('speed').value = String(route.speed);
     notify(error.message, true);
   }
 };
+$('speed-slider').oninput = () => setSpeed($('speed-slider').valueAsNumber);
+for (const button of document.querySelectorAll('[data-speed-step]')) {
+  button.onclick = () => {
+    const increased = Math.round((route.speed + Number(button.dataset.speedStep)) * 10) / 10;
+    setSpeed(Math.max(1, Math.min(120, increased)));
+  };
+}
+$('rate').onchange = () => {
+  advanceTo(performance.now());
+  playbackRate = Number($('rate').value);
+  paintSample();
+};
 $('example').onclick = () => { drawing = false; changeRoute(example, '示例路线 · 悉尼海港', { fit: true }); notify(''); };
-$('draw').onclick = () => { drawing = !drawing; if (drawing) pause(); syncControls(); };
+$('draw').onclick = () => { drawing = !drawing; pickingFixed = false; if (drawing) pause(); syncControls(); };
+$('pick-fixed').onclick = () => { pickingFixed = !pickingFixed; drawing = false; syncControls(); };
 $('undo').onclick = () => { changeRoute(route.points.slice(0, -1), title); notify(''); };
 $('clear').onclick = () => { changeRoute([], ''); notify(''); };
 $('basemap').onchange = setBasemap;
 map.on('moveend', paintSample);
 map.on('click', event => {
-  if (!drawing) return;
-  try { appendPoint([event.latlng.lat, wrapLongitude(event.latlng.lng)]); }
+  if (!drawing && !pickingFixed) return;
+  const point = [event.latlng.lat, wrapLongitude(event.latlng.lng)];
+  try {
+    if (pickingFixed) applyFixedPoint(point, { centre: false });
+    else appendPoint(point);
+  }
   catch (error) { notify(error.message, true); }
 });
 $('coordinate-form').onsubmit = event => {
   event.preventDefault();
   try {
     const point = [Number($('latitude').value), Number($('longitude').value)];
-    appendPoint(point);
-    map.setView(point, Math.max(map.getZoom(), 16));
+    if (event.submitter?.id === 'add-point') {
+      appendPoint(point);
+      map.setView(point, Math.max(map.getZoom(), 16));
+    } else applyFixedPoint(point);
   } catch (error) { notify(error.message, true); }
 };
 $('import').onclick = () => $('gpx').click();
@@ -245,9 +332,10 @@ $('gpx').onchange = async () => {
   } catch (error) { if (revision === importRevision) notify(error.message, true); }
 };
 $('export').onclick = () => {
-  const pointTag = route.points.length === 1 ? 'wpt' : 'trkpt';
-  const points = route.points.map(([lat, lon]) => `<${pointTag} lat="${lat}" lon="${lon}"/>`).join('\n');
-  const body = route.points.length === 1 ? points : `<trk><name>Trace Isle</name><trkseg>${points}</trkseg></trk>`;
+  const selected = fixedPoint ? [fixedPoint] : route.points;
+  const pointTag = selected.length === 1 ? 'wpt' : 'trkpt';
+  const points = selected.map(([lat, lon]) => `<${pointTag} lat="${lat}" lon="${lon}"/>`).join('\n');
+  const body = selected.length === 1 ? points : `<trk><name>Trace Isle</name><trkseg>${points}</trkseg></trk>`;
   const xml = `<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="Trace Isle" xmlns="http://www.topografix.com/GPX/1/1">${body}</gpx>`;
   const url = URL.createObjectURL(new Blob([xml], { type: 'application/gpx+xml' }));
   const link = document.createElement('a');
@@ -259,7 +347,7 @@ $('export').onclick = () => {
 $('share').onclick = () => {
   try {
     const url = new URL(location.href);
-    url.hash = `route=${encodeRoute(route)}`;
+    url.hash = `route=${encodeRoute(fixedPoint ? { points: [fixedPoint], speed: route.speed } : route)}`;
     $('share-url').value = url.href;
     $('share-status').textContent = '';
     $('share-dialog').showModal();

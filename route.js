@@ -34,22 +34,35 @@ function distance(from, to) {
 }
 
 export function makeRoute(points, speed) {
-  validateSpeed(speed);
   const normalized = normalizePoints(points);
   const offsets = normalized.length ? [0] : [];
   for (let i = 1; i < normalized.length; i++) {
     offsets.push(offsets[i - 1] + distance(normalized[i - 1], normalized[i]));
   }
   const metres = offsets.at(-1) ?? 0;
-  return { points: normalized, offsets, metres, seconds: metres / (speed / 3.6), speed };
+  return setRouteSpeed({ points: normalized, offsets, metres }, speed);
 }
 
-export function sampleAt(route, seconds) {
+export function setRouteSpeed(route, speed) {
+  validateSpeed(speed);
+  return { ...route, speed, seconds: route.metres / (speed / 3.6) };
+}
+
+export function advancePlayback(route, current, seconds) {
+  const speed = route.speed / 3.6;
+  const remaining = Math.max(0, route.metres - current.metres);
+  const delta = Math.max(0, seconds);
+  if (delta >= remaining / speed) {
+    return { metres: route.metres, elapsed: current.elapsed + remaining / speed };
+  }
+  return { metres: current.metres + delta * speed, elapsed: current.elapsed + delta };
+}
+
+export function sampleAtDistance(route, distanceMetres) {
   if (!route.points.length) return null;
-  const elapsed = Math.max(0, Math.min(route.seconds, seconds));
-  if (!elapsed) return { point: route.points[0], metres: 0, elapsed };
-  if (elapsed === route.seconds) return { point: route.points.at(-1), metres: route.metres, elapsed };
-  const metres = elapsed * route.speed / 3.6;
+  const metres = Math.max(0, Math.min(route.metres, distanceMetres));
+  if (!metres) return { point: route.points[0], metres: 0 };
+  if (metres === route.metres) return { point: route.points.at(-1), metres };
   let low = 1;
   let high = route.offsets.length - 1;
   while (low < high) {
@@ -64,8 +77,13 @@ export function sampleAt(route, seconds) {
     point: [start[0] + (end[0] - start[0]) * ratio,
       wrapLongitude(start[1] + wrapLongitude(end[1] - start[1]) * ratio)],
     metres,
-    elapsed,
   };
+}
+
+export function sampleAt(route, seconds) {
+  const elapsed = Math.max(0, Math.min(route.seconds, seconds));
+  const sample = sampleAtDistance(route, elapsed === route.seconds ? route.metres : elapsed * route.speed / 3.6);
+  return sample && { ...sample, elapsed };
 }
 
 export function encodeRoute({ points, speed }) {

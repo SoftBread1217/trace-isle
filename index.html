@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="description" content="迹屿是可在 Windows 和 iPhone 浏览器使用的路线绘制、GPX 导入和定位测试工具。">
+  <meta name="description" content="迹屿是可在 Windows 和 iPhone 浏览器使用的固定点、路线回放和速度测试工具。">
   <meta name="theme-color" content="#122b29">
   <title>迹屿 · Trace Isle</title>
   <link rel="icon" href="./isle.svg" type="image/svg+xml">
@@ -27,6 +27,7 @@
         <div class="panel-head"><div><h2 id="route-title">路线</h2><p id="route-name">示例路线 · 悉尼海港</p></div><button id="example" type="button">载入示例</button></div>
         <div class="toolbar" aria-label="路线编辑">
           <button id="draw" type="button" aria-pressed="false">地图加点</button>
+          <button id="pick-fixed" type="button" aria-pressed="false">地图选固定点</button>
           <button id="undo" type="button">撤销</button>
           <button id="clear" type="button">清空</button>
           <button id="import" type="button">导入 GPX</button><input id="gpx" type="file" accept=".gpx,application/gpx+xml,application/xml,text/xml" hidden>
@@ -34,29 +35,37 @@
         </div>
         <div class="map-box"><div id="map" aria-label="可缩放的路线地图"></div><div id="map-hint" class="map-hint" hidden>点击地图添加坐标点</div></div>
         <div class="map-footer"><label><input id="basemap" type="checkbox" checked> 在线底图</label><span id="map-status" role="status"></span><span id="point-count">0 个点</span></div>
-        <details class="coordinate-entry"><summary>输入经纬度</summary>
+        <details class="coordinate-entry"><summary>定位设置 · 输入经纬度</summary>
           <form id="coordinate-form" class="coordinate-form">
             <label>纬度<input id="latitude" type="number" min="-90" max="90" step="any" required inputmode="decimal"></label>
             <label>经度<input id="longitude" type="number" min="-180" max="180" step="any" required inputmode="decimal"></label>
-            <button id="add-point" type="submit">添加点</button>
+            <div class="coordinate-actions">
+              <button id="apply-fixed" class="primary" type="submit">应用固定点</button>
+              <button id="add-point" type="submit">添加到路线</button>
+            </div>
           </form>
         </details>
       </section>
       <aside class="side" aria-label="播放和定位读数">
         <section class="panel player" aria-labelledby="player-title">
           <div class="panel-head"><h2 id="player-title">路线回放</h2><span id="state" class="state" role="status">就绪</span></div>
-          <div class="stats"><div><span>总距离</span><strong id="total-distance">—</strong></div><div><span>预计用时</span><strong id="total-time">—</strong></div></div>
+          <div class="stats"><div><span>总距离</span><strong id="total-distance">—</strong></div><div><span>预计剩余</span><strong id="total-time">—</strong></div></div>
           <div class="settings">
-            <label>速度（km/h）<input id="speed" type="number" min="1" max="120" step="0.1" value="5"></label>
+            <label>模拟速度（km/h）<input id="speed" type="number" min="1" max="120" step="0.1" inputmode="decimal" value="5"></label>
             <label>播放倍率<select id="rate"><option value="1">1×</option><option value="2">2×</option><option value="5" selected>5×</option><option value="10">10×</option></select></label>
           </div>
-          <label class="progress-label" for="progress"><span>进度</span><span id="elapsed">00:00</span></label>
+          <div class="speed-control" role="group" aria-label="实时调速">
+            <button type="button" data-speed-step="-1" aria-label="减速 1 公里每小时">−1</button>
+            <input id="speed-slider" type="range" aria-label="实时调速（km/h）" min="1" max="120" step="0.1" value="5">
+            <button type="button" data-speed-step="1" aria-label="加速 1 公里每小时">+1</button>
+          </div>
+          <label class="progress-label" for="progress"><span>路线进度</span><span id="elapsed">已用 00:00</span></label>
           <input id="progress" class="progress" type="range" min="0" max="1000" value="0" step="1">
-          <div class="transport"><button id="play" class="primary" type="button">播放</button><button id="reset" type="button">重置</button></div>
+          <div class="transport"><button id="play" class="primary" type="button">播放</button><button id="reset" type="button">重置</button><button id="return-to-route" type="button" hidden>返回路线</button></div>
         </section>
         <section id="receiver" class="panel receiver" aria-labelledby="receiver-title">
           <div class="panel-head"><h2 id="receiver-title">定位接收器</h2><span class="tag">模拟数据</span></div>
-          <dl class="readings"><div><dt>纬度</dt><dd id="lat-readout">—</dd></div><div><dt>经度</dt><dd id="lon-readout">—</dd></div><div><dt>已走距离</dt><dd id="distance-readout">—</dd></div></dl>
+          <dl class="readings"><div><dt>纬度</dt><dd id="lat-readout">—</dd></div><div><dt>经度</dt><dd id="lon-readout">—</dd></div><div><dt>已走距离</dt><dd id="distance-readout">—</dd></div><div><dt>当前速度</dt><dd id="speed-readout">—</dd></div></dl>
           <p>这里显示测试页面收到的位置，适合用另一台设备复现同一条路线。</p>
         </section>
       </aside>
