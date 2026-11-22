@@ -1,5 +1,5 @@
 import { advancePlayback, decodeRoute, encodeRoute, makeRoute, MAX_POINTS, normalizePoints,
-  sampleAtDistance, setRouteSpeed, wrapLongitude } from './route.js';
+  sampleAtDistance, setRouteSpeed, wrapLongitude } from './route.js?v=2';
 
 const $ = id => document.getElementById(id);
 const L = window.L;
