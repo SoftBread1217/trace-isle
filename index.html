@@ -4,55 +4,55 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="迹屿是可在 Windows 和 iPhone 浏览器使用的固定点、路线回放和速度测试工具。">
-  <meta name="theme-color" content="#122b29">
+  <meta name="theme-color" content="#F8FAFC">
   <title>迹屿 · Trace Isle</title>
-  <link rel="icon" href="./isle.svg" type="image/svg+xml">
+  <link rel="icon" href="./isle.svg?v=10" type="image/svg+xml">
   <link rel="stylesheet" href="./vendor/leaflet.css">
-  <link rel="stylesheet" href="./style.css?v=6">
+  <link rel="stylesheet" href="./style.css?v=10">
   <script defer src="./vendor/leaflet.js"></script>
   <script defer src="./vendor/peerjs.min.js"></script>
   <script defer src="./vendor/qrcode.js"></script>
-  <script type="module" src="./app.js?v=8"></script>
+  <script type="module" src="./app.js?v=10"></script>
 </head>
 <body>
   <header class="top"><div class="wrap top-inner">
-    <a class="brand" href="./"><img src="./isle.svg" width="40" height="40" alt=""><span>迹屿 <small>TRACE ISLE</small></span></a>
-    <a class="jump" href="#receiver">定位接收器</a>
+    <a class="brand" href="./"><img src="./isle.svg?v=10" width="30" height="30" alt=""><span>迹屿 <small>Trace Isle</small></span></a>
+    <h1>轨迹工作台</h1>
+    <button id="usb-trigger" class="device-button" type="button" aria-haspopup="dialog" aria-controls="usb-dialog"><span class="phone-icon" aria-hidden="true"></span>iPhone <span id="usb-indicator" role="status">USB 设置</span></button>
   </div></header>
   <main class="wrap">
-    <section class="intro" aria-labelledby="title">
-      <div><h1 id="title">找学校操场</h1><p>选好校区和操场，预览一圈路线。</p></div>
-      <div class="intro-actions"><button id="connect" type="button">配对网页接收器</button><span id="device-state" role="status">网页未配对</span><button id="share" type="button" disabled>分享测试链接</button></div>
-    </section>
-    <section class="panel finder" aria-label="查找学校操场">
-      <form id="school-search"><label for="school-query">学校或校区</label>
-        <div class="school-input"><input id="school-query" type="search" placeholder="输入学校名、简称或校区，例如「清华」" maxlength="80" required><button class="primary">搜索</button></div></form>
+    <section class="finder" aria-label="查找学校操场">
+      <div class="search-row"><form id="school-search">
+        <label for="school-query" class="sr-only">学校或校区</label>
+        <div class="search-box"><span class="search-icon" aria-hidden="true"></span><input id="school-query" type="search" placeholder="搜索学校或校区" maxlength="80" required></div><button class="primary">搜索</button>
+      </form>
+      <div class="presets" aria-label="路线预设"><span>预设</span><button id="stadium" type="button" class="chip">陵水体育场</button><button id="example" type="button" class="chip">悉尼海港</button></div></div>
       <div id="school-results" class="choices"></div>
-      <div class="finder-actions"><button type="button" id="choose-demo">体验陵水体育场</button><button type="button" id="choose-manual">在地图上指定操场</button></div>
       <p id="school-status" role="status" class="helper"></p>
-      <div id="field-picker" hidden>
-        <h2 id="campus-title"></h2><div class="choices" id="field-results"></div>
-        <div id="campus-map" aria-label="操场选择与路线预览地图"></div>
-        <div id="field-preview" hidden><strong id="field-length"></strong><p id="field-guide" class="helper"></p>
-        <div class="finder-actions"><button id="use-field" type="button" class="primary">使用这条跑道</button><button id="edit-template" type="button">调整为估算模板</button></div></div>
-      </div>
     </section>
-    <section class="panel" style="padding:1rem;margin-bottom:1rem" aria-labelledby="usb-title">
-      <h2 id="usb-title">更改 iPhone 系统定位</h2>
-      <p id="usb-help" class="helper">在 Windows 上启动 USB 助手，接好数据线后打开本机控制台。</p>
-      <div class="intro-actions" style="margin-top:.6rem">
-        <button id="usb-open" class="primary" type="button">打开本机 USB 控制台</button>
-        <a id="usb-download" href="https://github.com/SoftBread1217/trace-isle/archive/refs/heads/main.zip">下载助手 · 解压后运行 Start-Windows-USB.cmd</a>
-        <div id="usb-local" hidden><button id="usb-apply" type="button" disabled>应用到 iPhone</button> <button id="usb-clear" type="button" disabled>恢复真实定位</button></div>
-      </div><p id="usb-status" class="helper" role="status"></p>
-    </section>
+    <dialog id="usb-dialog" aria-labelledby="usb-title">
+      <div class="share-form"><div class="dialog-head"><h2 id="usb-title">更改 iPhone 系统定位</h2><form method="dialog"><button class="dismiss" aria-label="关闭 iPhone 设置">×</button></form></div>
+      <p id="usb-help">在 Windows 上启动 USB 助手，接好数据线后打开本机控制台。</p>
+      <button id="usb-open" type="button">打开本机 USB 控制台</button>
+      <a id="usb-download" href="https://github.com/SoftBread1217/trace-isle/archive/refs/heads/main.zip">下载助手 · 解压后运行 Start-Windows-USB.cmd</a>
+      <div id="usb-local" class="transport" hidden><button id="usb-apply" type="button" disabled>应用到 iPhone</button><button id="usb-clear" type="button" disabled>恢复真实定位</button></div>
+      <p id="usb-status" class="helper" role="status"></p></div>
+    </dialog>
     <div class="workspace">
-      <section class="panel route-panel" aria-labelledby="route-title">
-        <div class="panel-head"><div><h2 id="route-title">路线</h2><p id="route-name"></p></div><button id="share-field" hidden>分享这个操场</button></div>
-        <div class="toolbar presets" aria-label="路线预设">
-          <button id="stadium" class="primary" type="button">陵水体育场预设</button>
-          <button id="example" type="button">悉尼海港示例</button>
+      <section class="panel route-panel" aria-label="路线地图">
+        <div id="field-picker" hidden>
+          <div class="panel-head"><h2 id="campus-title"></h2><button type="button" id="back-route">返回路线</button></div>
+          <div class="choices" id="field-results"></div>
+          <button id="field-manual" type="button">在地图上指定操场</button>
+          <div id="campus-map" aria-label="操场选择与路线预览地图"></div>
+          <div id="field-preview" hidden><strong id="field-length"></strong><p id="field-guide" class="helper"></p>
+          <div class="finder-actions"><button id="use-field" type="button">使用这条跑道</button><button id="edit-template" type="button">调整为估算模板</button></div></div>
         </div>
+        <div id="route-editor">
+        <div class="panel-head"><div><h2 id="route-title">路线地图</h2><p id="route-name"></p></div>
+        <div class="finder-actions"><button id="share-field" hidden>分享这个操场</button><button type="button" id="choose-manual">指定操场</button></div></div>
+        <div class="map-box"><div id="map" aria-label="可缩放的路线地图"></div><div id="map-hint" class="map-hint" hidden></div></div>
+        <div class="map-footer"><label><input id="basemap" type="checkbox" checked> 在线底图</label><span id="map-status" role="status"></span><span id="point-count">0 个点</span></div>
         <details class="custom-route"><summary>自定义路线与固定点</summary><div class="toolbar" aria-label="路线编辑">
           <button id="draw" type="button" aria-pressed="false">地图画轨迹</button>
           <button id="close-route" type="button" disabled>闭合路线</button>
@@ -62,18 +62,17 @@
           <button id="import" type="button">导入 GPX</button><input id="gpx" type="file" accept=".gpx,application/gpx+xml,application/xml,text/xml" hidden>
           <button id="export" type="button">导出 GPX</button>
         </div>
-        </details><div class="map-box"><div id="map" aria-label="可缩放的路线地图"></div><div id="map-hint" class="map-hint" hidden>点击地图添加轨迹点</div></div>
-        <div class="map-footer"><label><input id="basemap" type="checkbox" checked> 在线底图</label><span id="map-status" role="status"></span><span id="point-count">0 个点</span></div>
+        </details>
         <details class="coordinate-entry"><summary>定位设置 · 输入经纬度</summary>
           <form id="coordinate-form" class="coordinate-form">
             <label>纬度<input id="latitude" type="number" min="-90" max="90" step="any" required inputmode="decimal"></label>
             <label>经度<input id="longitude" type="number" min="-180" max="180" step="any" required inputmode="decimal"></label>
             <div class="coordinate-actions">
-              <button id="apply-fixed" class="primary" type="submit">应用固定点</button>
+              <button id="apply-fixed" type="submit">应用固定点</button>
               <button id="add-point" type="submit">添加到路线</button>
             </div>
           </form>
-        </details>
+        </details></div>
       </section>
       <aside class="side" aria-label="播放和定位读数">
         <section class="panel player" aria-labelledby="player-title">
@@ -81,7 +80,7 @@
           <div class="stats"><div><span>路线原长</span><strong id="total-distance">—</strong></div><div><span>剩余运动时间</span><strong id="total-time">—</strong></div></div>
           <div class="settings">
             <label>目标距离（公里）<input id="target" type="number" min="0.001" max="1000" step="0.001" inputmode="decimal" placeholder="按路线原长"></label>
-            <label>跑步配速（分:秒/公里）<input id="pace" type="text" value="6:00" maxlength="5" spellcheck="false"></label>
+            <label>跑步配速（分:秒/km）<input id="pace" type="text" value="6:00" maxlength="5" spellcheck="false"></label>
           </div>
           <div class="settings"><label>预览倍率<select id="rate"><option value="1" selected>1×</option><option value="2">2×</option><option value="5">5×</option><option value="10">10×</option></select></label>
             <div class="pace-steps"><button type="button" data-pace-step="-5">快 5 秒</button><button type="button" data-pace-step="5">慢 5 秒</button></div>
@@ -89,12 +88,12 @@
           <p class="helper" id="trip-hint"></p><p class="helper error" id="setting-error" role="status"></p>
           <label class="progress-label" for="progress"><span>路线进度</span><span id="elapsed">已用 00:00</span></label>
           <input id="progress" class="progress" type="range" min="0" max="1000" value="0" step="1">
-          <div class="transport"><button id="play" class="primary" type="button">播放</button><button id="reset" type="button">重置</button><button id="return-to-route" type="button" hidden>返回路线</button></div>
+          <div class="transport playback"><button id="play" class="primary" type="button">播放轨迹</button><button id="reset" type="button">重置</button><button id="share" type="button" disabled>分享</button><button id="return-to-route" type="button" hidden>返回路线</button></div>
         </section>
         <section id="receiver" class="panel receiver" aria-labelledby="receiver-title">
           <div class="panel-head"><h2 id="receiver-title">定位接收器</h2><span class="tag">模拟数据</span></div>
           <dl class="readings"><div><dt>纬度</dt><dd id="lat-readout">—</dd></div><div><dt>经度</dt><dd id="lon-readout">—</dd></div><div><dt>已走距离</dt><dd id="distance-readout">—</dd></div><div><dt>当前配速</dt><dd id="speed-readout">—</dd></div></dl>
-          <p>这里显示本页的模拟位置。点「连接手机」可在 Safari 实时查看相同读数。</p>
+          <div class="receiver-actions"><button id="connect" type="button">配对网页接收器</button><span id="device-state" role="status">网页未配对</span></div>
         </section>
       </aside>
     </div>
@@ -111,7 +110,7 @@
       <form method="dialog" class="share-form">
         <h2 id="share-title">分享测试路线</h2><p>把链接发到 iPhone，在 Safari 打开。链接包含当前路线的坐标。</p>
         <label for="share-url">路线链接</label><input id="share-url" type="url" readonly>
-        <div class="transport"><button id="copy" class="primary" type="button">复制链接</button><button type="submit">关闭</button></div>
+        <div class="transport"><button id="copy" type="button">复制链接</button><button type="submit">关闭</button></div>
         <p id="share-status" role="status"></p>
       </form>
     </dialog>

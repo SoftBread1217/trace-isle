@@ -1,8 +1,8 @@
 import { advancePlayback, canCloseRoute, closeRoute, decodeRoute, encodeRoute, isClosedRoute, makeRoute,
   MAX_POINTS, normalizePoints, tripSample, parsePace, formatPace, setRouteSpeed, wrapLongitude } from './route.js?v=4';
 import { setupPairing } from './pair.js?v=5';
-import { setupUSB } from './usb.js?v=6';
-import { LINGSHUI_STADIUM, SYDNEY_HARBOUR, setupCampusFinder } from './presets.js?v=8';
+import { setupUSB } from './usb.js?v=10';
+import { LINGSHUI_STADIUM, SYDNEY_HARBOUR, setupCampusFinder, lightBasemap } from './presets.js?v=10';
 
 const $ = id => document.getElementById(id);
 const L = window.L;
@@ -10,8 +10,7 @@ const map = L.map('map', { minZoom: 2, maxZoom: 19, zoomControl: true }).setView
 const routeLine = L.polyline([], { color: '#216851', weight: 4, opacity: .95, interactive: false }).addTo(map);
 const cursor = L.circleMarker([0, 0], { radius: 8, color: '#fff', weight: 3, fillColor: '#0c4939', fillOpacity: 1, interactive: false });
 const pins = L.layerGroup().addTo(map);
-const tileCredit = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
-const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: tileCredit, maxZoom: 19 });
+const tiles = lightBasemap(L);
 tiles.on('tileerror', () => { $('map-status').textContent = '底图暂不可用'; });
 tiles.on('tileload', () => { $('map-status').textContent = ''; });
 
@@ -82,7 +81,8 @@ function paintSample() {
 
 function syncControls() {
   const count = route.points.length;
-  $('share').textContent = fieldName && !fixedPoint ? '分享这个操场' : '分享测试链接';
+  $('player-title').closest('.player').toggleAttribute('data-playing', mode === 'playing');
+  $('share').ariaLabel = fieldName && !fixedPoint ? '分享这个操场' : '分享测试链接';
   $('share-field').hidden = !fieldName || Boolean(fixedPoint) || drawing;
   $('state').textContent = ({ ready: '就绪', playing: '播放中', paused: '已暂停', done: '已结束', fixed: '固定点已发送' })[mode];
   if (!count) $('state').textContent = '等待路线';
@@ -244,6 +244,7 @@ function readGPX(text) {
 }
 
 $('play').onclick = () => {
+  if (!$('field-picker').hidden) closePicker();
   if (mode === 'playing') return pause();
   if (!route.points.length || fixedPoint || drawing) return;
   drawing = false;
@@ -323,8 +324,8 @@ function loadPreset(preset) {
   notify('');
 }
 
-$('example').onclick = () => loadPreset(SYDNEY_HARBOUR);
-$('stadium').onclick = () => loadPreset(LINGSHUI_STADIUM);
+$('example').onclick = () => { closePicker(); loadPreset(SYDNEY_HARBOUR); };
+$('stadium').onclick = () => { closePicker(); loadPreset(LINGSHUI_STADIUM); };
 $('draw').onclick = () => {
   if (drawing && route.points.length === 1) {
     notify('再在地图上点一个不同的位置，就可以完成轨迹。', true);
@@ -412,7 +413,7 @@ function routeFragment() {
 }
 $('share').onclick = () => {
   try {
-    const url = new URL('https://softbread1217.github.io/trace-isle/?v=8');
+    const url = new URL('https://softbread1217.github.io/trace-isle/?v=10');
     url.hash = routeFragment();
     $('share-url').value = url.href;
     $('share-status').textContent = '';
@@ -455,7 +456,7 @@ setupPairing(() => ({
   mode: $('state').textContent
 }));
 const releaseOutput = setupUSB(() => fixedPoint ?? tripSample(route, motion.metres)?.point, routeFragment);
-setupCampusFinder({L, measure: points => makeRoute(points, 10).metres, use(points, name) {
+const closePicker = setupCampusFinder({L, showRoute: () => map.invalidateSize({pan:false}), measure: points => makeRoute(points, 10).metres, use(points, name) {
   releaseOutput?.();
   loadPreset({points, name});
   fieldName = name;

@@ -1,6 +1,8 @@
 const $ = id => document.getElementById(id);
 
 export function setupUSB(readPosition, routeLink) {
+  const dialog = $('usb-dialog');
+  $('usb-trigger').onclick = () => dialog.showModal();
   const local = 'http://127.0.0.1:4179';
   if (location.origin !== local) {
     $('usb-open').onclick = () => {
@@ -18,6 +20,8 @@ export function setupUSB(readPosition, routeLink) {
   let socket, timer, pending, streaming, ready, lastPoint, clearRequested;
   const status = message => { $('usb-status').textContent = message; };
   function controls() {
+    $('usb-indicator').textContent = ready ? '已连接' : socket ? '连接中' : '未连接';
+    $('usb-trigger').classList.toggle('connected', Boolean(ready));
     $('usb-apply').disabled = !ready || streaming || clearRequested;
     $('usb-clear').disabled = !ready;
     $('usb-open').textContent = socket ? '断开 USB' : '连接 USB iPhone';
