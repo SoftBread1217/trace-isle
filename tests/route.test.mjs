@@ -89,15 +89,38 @@ test('Lingshui stadium is a playable closed demo route', () => {
   const route = makeRoute(points, 5);
   assert.ok(route.metres > 300 && route.metres < 500);
   assert.notDeepEqual(sampleAtDistance(route, route.metres / 2).point, points[0]);
+  // From the north bend, the counterclockwise runner heads west.
+  assert.ok(sampleAtDistance(route, 5).point[1] < points[0][1]);
   assert.deepEqual(decodeRoute(encodeRoute(route)).points[0], points[0]);
 });
 
-import { stadiumLoop, fitOval, searchSchools, nearbyVenues, ovalPoint } from '../presets.js';
+test('mapped running tracks travel counterclockwise from their original start', () => {
+  const school=['校区','','',30,120,[],{fieldIds:[1]}];
+  const ccw=[[30,120],[30,120.001],[30.001,120.001],[30.001,120],[30,120]];
+  for(const ring of [ccw,[...ccw].reverse()]) {
+    const deltas=ring.flatMap(([lat,lon])=>[Math.round((lat-30)*1e6),Math.round((lon-120)*1e6)]);
+    const [field]=nearbyVenues([[1,'田径场',30,120,1,deltas,1]],school);
+    assert.deepEqual(field.outline,ccw);
+  }
+});
+
+import { stadiumLoop, fitOval, searchSchools, nearbyVenues, ovalPoint, sharedTrackPoints } from '../presets.js';
+
+test('shared campus tracks and old unnamed Lingshui links use running direction', () => {
+  const points=LINGSHUI_STADIUM.points;
+  const legacy=decodeRoute(encodeRoute({points:[...points].reverse(),speed:10})).points;
+  assert.deepEqual(sharedTrackPoints(legacy,''),points);
+  const custom=[[30,120],[30.001,120],[30.001,120.001],[30,120]];
+  assert.deepEqual(sharedTrackPoints(custom,'田径场'),[...custom].reverse());
+  assert.deepEqual(sharedTrackPoints(custom,''),custom);
+});
 
 test('stadium template has two straights and closed turns, at any angle', () => {
   for(const bearing of [0,32,91,155]) {
     const model={center:[30,120],length:160,width:60,bearing};
     const points=stadiumLoop(model);
+    const [start,next]=points.slice(0,2).map(([lat,lon])=>[lon-model.center[1],lat-model.center[0]]);
+    assert.ok(start[0]*next[1]-start[1]*next[0]>0);
     assert.deepEqual(points.at(-1),points[0]);
     assert.ok(Math.abs(makeRoute(points,10).metres-(200+60*Math.PI))<1);
     const outline=[[80,30],[80,-30],[-80,-30],[-80,30],[80,30]].map(([u,v])=>ovalPoint(model,u,v));

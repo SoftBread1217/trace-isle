@@ -1,3 +1,5 @@
+import { isClosedRoute, wrapLongitude } from './route.js?v=4';
+
 export const SYDNEY_HARBOUR = {
   name: '示例路线 · 悉尼海港',
   points: [
@@ -24,8 +26,34 @@ const stadiumPoints = Array.from({ length: 32 }, (_, index) => {
 
 export const LINGSHUI_STADIUM = {
   name: '陵水体育场 · 示意环线',
-  points: [...stadiumPoints, [...stadiumPoints[0]]],
+  points: counterclockwiseTrack([...stadiumPoints, [...stadiumPoints[0]]]),
 };
+
+function counterclockwiseTrack(points) {
+  if (!isClosedRoute(points)) return points;
+  // Signed area with east as x and north as y. Translate to the start to
+  // keep the calculation precise even for small running tracks.
+  const [lat, lon] = points[0];
+  let twiceArea = 0, previousX = 0, previousY = 0;
+  for (const [y, x] of points) {
+    const east = wrapLongitude(x - lon), north = y - lat;
+    twiceArea += previousX * north - previousY * east;
+    previousX = east;
+    previousY = north;
+  }
+  return twiceArea < 0 ? [...points].reverse() : points;
+}
+
+export function sharedTrackPoints(points, fieldName) {
+  if (fieldName) return counterclockwiseTrack(points);
+  // Earlier direct Lingshui preset links stored coordinates without a field name.
+  const preset = LINGSHUI_STADIUM.points;
+  if (points.length === preset.length && points.every(([lat,lon], i) => {
+    const original = preset[preset.length - 1 - i];
+    return lat === original[0] && lon === original[1];
+  })) return preset;
+  return points;
+}
 
 const D = Math.PI / 180;
 const M = 111195;
@@ -107,7 +135,7 @@ export function nearbyVenues(rows, school) {
       (Math.abs(north)>Math.abs(east)*.45 ? (north>0?'北':'南'):'') +
       (Math.abs(east)>Math.abs(north)*.45 ? (east>0?'东':'西'):'');
     candidates.push({id,name:name || direction.replace('北东','东北').replace('北西','西北').replace('南东','东南').replace('南西','西南')+'侧操场',
-      center:[y,x],outline,exact:Boolean(exact),metres,mappedName:name,track});
+      center:[y,x],outline:exact ? counterclockwiseTrack(outline) : outline,exact:Boolean(exact),metres,mappedName:name,track});
   }
   // Several mapped lanes or a stadium boundary can represent the same field.
   candidates.sort((a,b)=>Number(b.exact)-Number(a.exact) || b.track-a.track || Number(Boolean(b.mappedName))-Number(Boolean(a.mappedName)) || a.metres-b.metres);
@@ -198,7 +226,7 @@ export function setupCampusFinder({L, measure, use, showRoute}) {
   function geometry() {
     if(model) points=stadiumLoop(model);
     path.setLatLngs(points);startPin.setLatLng(points[0]);
-    $('field-length').textContent=fieldLabel+' · '+(model || chosen.estimated?'估算路线':'地图跑道')+' · 一圈约 '+Math.round(measure(points))+' 米';
+    $('field-length').textContent=fieldLabel+' · '+(model || chosen.estimated?'估算路线':'地图跑道')+' · 逆时针 · 一圈约 '+Math.round(measure(points))+' 米';
     if(!model) return;
     const locations=[model.center,ovalPoint(model,model.length/2,0),ovalPoint(model,-model.length/2,0),ovalPoint(model,0,model.width/2)];
     handles.forEach((h,i)=>h.setLatLng(locations[i]));

@@ -2,7 +2,7 @@ import { advancePlayback, canCloseRoute, closeRoute, decodeRoute, encodeRoute, i
   MAX_POINTS, normalizePoints, tripSample, parsePace, formatPace, setRouteSpeed, wrapLongitude } from './route.js?v=4';
 import { setupPairing } from './pair.js?v=5';
 import { setupUSB } from './usb.js?v=10';
-import { LINGSHUI_STADIUM, SYDNEY_HARBOUR, setupCampusFinder, streetBasemap } from './presets.js?v=11';
+import { LINGSHUI_STADIUM, SYDNEY_HARBOUR, setupCampusFinder, sharedTrackPoints, streetBasemap } from './presets.js?v=12';
 
 const $ = id => document.getElementById(id);
 const L = window.L;
@@ -411,7 +411,7 @@ function routeFragment() {
 }
 $('share').onclick = () => {
   try {
-    const url = new URL('https://softbread1217.github.io/trace-isle/?v=11');
+    const url = new URL('https://softbread1217.github.io/trace-isle/?v=12');
     url.hash = routeFragment();
     $('share-url').value = url.href;
     $('share-status').textContent = '';
@@ -440,7 +440,7 @@ if (location.hash.startsWith('#route=')) {
     target = shared.target ?? null;
     $('target').value = target == null ? '' : String(target / 1000);
     const field = (params.get('field') || '').slice(0,160);
-    changeRoute(points, field || '分享的测试路线', { speed, fit: true });
+    changeRoute(sharedTrackPoints(points, field), field || '分享的测试路线', { speed, fit: true });
     fieldName = field;
     syncControls();
     if (field) $('school-status').textContent = '已载入分享的操场：' + field;
