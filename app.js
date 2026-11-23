@@ -1,6 +1,7 @@
 import { advancePlayback, canCloseRoute, closeRoute, decodeRoute, encodeRoute, isClosedRoute, makeRoute,
   MAX_POINTS, normalizePoints, tripSample, parsePace, formatPace, setRouteSpeed, wrapLongitude } from './route.js?v=4';
-import { setupPairing } from './pair.js?v=4';
+import { setupPairing } from './pair.js?v=5';
+import { setupUSB } from './usb.js?v=5';
 import { LINGSHUI_STADIUM, SYDNEY_HARBOUR } from './presets.js?v=3';
 
 const $ = id => document.getElementById(id);
@@ -436,3 +437,5 @@ setupPairing(() => ({
   distance: $('distance-readout').textContent, pace: $('speed-readout').textContent,
   mode: $('state').textContent
 }));
+setupUSB(() => fixedPoint ?? tripSample(route, motion.metres)?.point,
+  () => 'route=' + encodeRoute(fixedPoint ? { points: [fixedPoint], speed: route.speed } : { ...route, target }));

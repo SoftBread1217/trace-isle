@@ -12,7 +12,7 @@
   <script defer src="./vendor/leaflet.js"></script>
   <script defer src="./vendor/peerjs.min.js"></script>
   <script defer src="./vendor/qrcode.js"></script>
-  <script type="module" src="./app.js?v=4"></script>
+  <script type="module" src="./app.js?v=5"></script>
 </head>
 <body>
   <header class="top"><div class="wrap top-inner">
@@ -22,7 +22,16 @@
   <main class="wrap">
     <section class="intro" aria-labelledby="title">
       <div><h1 id="title">轨迹实验室</h1><p>在地图上画一条路线，看看位置如何沿时间变化。</p></div>
-      <div class="intro-actions"><button id="connect" class="primary" type="button">连接手机</button><span id="device-state" role="status">未连接</span><button id="share" type="button" disabled>分享测试链接</button></div>
+      <div class="intro-actions"><button id="connect" type="button">配对网页接收器</button><span id="device-state" role="status">网页未配对</span><button id="share" type="button" disabled>分享测试链接</button></div>
+    </section>
+    <section class="panel" style="padding:1rem;margin-bottom:1rem" aria-labelledby="usb-title">
+      <h2 id="usb-title">更改 iPhone 系统定位</h2>
+      <p id="usb-help" class="helper">在 Windows 上启动 USB 助手，接好数据线后打开本机控制台。</p>
+      <div class="intro-actions" style="margin-top:.6rem">
+        <button id="usb-open" class="primary" type="button">打开本机 USB 控制台</button>
+        <a id="usb-download" href="https://github.com/SoftBread1217/trace-isle/archive/refs/heads/main.zip">下载助手 · 解压后运行 Start-Windows-USB.cmd</a>
+        <div id="usb-local" hidden><button id="usb-apply" type="button" disabled>应用到 iPhone</button> <button id="usb-clear" type="button" disabled>恢复真实定位</button></div>
+      </div><p id="usb-status" class="helper" role="status"></p>
     </section>
     <div class="workspace">
       <section class="panel route-panel" aria-labelledby="route-title">

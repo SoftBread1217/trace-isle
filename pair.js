@@ -17,7 +17,7 @@ export function setupPairing(readSample) {
     $('pair-qr').hidden = $('pair-label').hidden = true;
     $('pair-url').value = '';
     $('pair-end').disabled = true;
-    $('connect').textContent = '连接手机';
+    $('connect').textContent = '配对网页接收器';
   }
   function fail(message) {
     release();
@@ -32,7 +32,7 @@ export function setupPairing(readSample) {
       const active = new window.Peer();
       peer = active;
       $('pair-end').disabled = false;
-      $('connect').textContent = '查看连接';
+      $('connect').textContent = '查看网页配对';
       status('准备配对', '正在获取手机接收链接…');
       deadline = setTimeout(() => fail('配对服务没有回应，请检查两端网络并重试。'), 20000);
       active.on('open', id => {
