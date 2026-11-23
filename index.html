@@ -8,11 +8,11 @@
   <title>迹屿 · Trace Isle</title>
   <link rel="icon" href="./isle.svg?v=10" type="image/svg+xml">
   <link rel="stylesheet" href="./vendor/leaflet.css">
-  <link rel="stylesheet" href="./style.css?v=10">
+  <link rel="stylesheet" href="./style.css?v=11">
   <script defer src="./vendor/leaflet.js"></script>
   <script defer src="./vendor/peerjs.min.js"></script>
   <script defer src="./vendor/qrcode.js"></script>
-  <script type="module" src="./app.js?v=10"></script>
+  <script type="module" src="./app.js?v=11"></script>
 </head>
 <body>
   <header class="top"><div class="wrap top-inner">
@@ -44,7 +44,7 @@
           <div class="panel-head"><h2 id="campus-title"></h2><button type="button" id="back-route">返回路线</button></div>
           <div class="choices" id="field-results"></div>
           <button id="field-manual" type="button">在地图上指定操场</button>
-          <div id="campus-map" aria-label="操场选择与路线预览地图"></div>
+          <div class="map-box"><div id="campus-map" aria-label="操场选择与路线预览地图"></div><span class="map-hint" id="campus-map-status" role="status"></span></div>
           <div id="field-preview" hidden><strong id="field-length"></strong><p id="field-guide" class="helper"></p>
           <div class="finder-actions"><button id="use-field" type="button">使用这条跑道</button><button id="edit-template" type="button">调整为估算模板</button></div></div>
         </div>

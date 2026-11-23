@@ -124,81 +124,17 @@ export function nearbyVenues(rows, school) {
 }
 
 
-let rendererPromise;
-function loadMapScript(url) {
-  return new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = url;
-    script.onload = resolve;
-    script.onerror = () => { script.remove(); reject(new Error('地图组件加载失败')); };
-    document.head.append(script);
+export function streetBasemap(L, status) {
+  const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   });
-}
-async function loadRenderer() {
-  for (const [file, cdn] of [
-    ['maplibre-gl.js','maplibre-gl@5.12.0/dist/maplibre-gl.js'],
-    ['leaflet-maplibre-gl.js','@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js']
-  ]) {
-    try { await loadMapScript(new URL('vendor/'+file, import.meta.url)); }
-    catch (error) {
-      // Older Windows helpers serve a fixed list of local files.
-      if (location.hostname !== '127.0.0.1') throw error;
-      await loadMapScript('https://cdn.jsdelivr.net/npm/'+cdn);
-    }
-  }
-}
-export function lightBasemap(L) {
-  const osm = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
-  const key = document.querySelector('meta[name="carto-basemaps-key"]')?.content.trim();
-  if (key) return L.tileLayer('https://basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png?key='+encodeURIComponent(key), {
-    maxZoom:19, attribution:osm+' · © <a href="https://carto.com/attributions">CARTO</a>'
-  });
-  const group = L.layerGroup();
-  const raster = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom:19, attribution:osm, className:'raster-fallback'
-  });
-  raster.on('tileload tileerror', event => group.fire(event.type));
-  let generation = 0, timer;
-  group.on('add', async () => {
-    const current = ++generation;
-    let vector;
-    function fallback() {
-      if (current !== generation) return;
-      ++generation;
-      clearTimeout(timer);
-      if (vector) group.removeLayer(vector);
-      group.addLayer(raster);
-    }
-    timer = setTimeout(fallback, 20000);
-    try {
-      rendererPromise ??= loadRenderer().catch(error => { rendererPromise = null; throw error; });
-      await rendererPromise;
-      if (current !== generation) return;
-      vector = L.maplibreGL({
-        style:'https://tiles.openfreemap.org/styles/positron',
-        attributionControl:{customAttribution:'<a href="https://openfreemap.org/">OpenFreeMap</a> · © <a href="https://openmaptiles.org/">OpenMapTiles</a> · '+osm}
-      });
-      group.addLayer(vector);
-      const renderer = vector.getMaplibreMap();
-      renderer.once('idle', () => {
-        if (current === generation) { clearTimeout(timer); group.fire('tileload'); }
-      });
-      renderer.on('webglcontextlost', fallback);
-      renderer.on('error', event => {
-        if (!renderer.isStyleLoaded() || event.sourceId === 'openmaptiles') fallback();
-      });
-    } catch {
-      // Leaflet registers the layer before MapLibre allocates its WebGL context.
-      if (vector && !vector.getMaplibreMap()) vector.onRemove = () => vector.getContainer()?.remove();
-      fallback();
-    }
-  });
-  group.on('remove', () => {
-    ++generation;
-    clearTimeout(timer);
-    group.clearLayers();
-  });
-  return group;
+  let failed = false;
+  tiles.on('loading', () => { failed = false; status.textContent = '正在加载底图…'; });
+  tiles.on('tileerror', () => { failed = true; status.textContent = '底图加载失败，可刷新重试。'; });
+  tiles.on('load', () => { if (!failed) status.textContent = ''; });
+  tiles.on('remove', () => { status.textContent = ''; });
+  return tiles;
 }
 
 export function setupCampusFinder({L, measure, use, showRoute}) {
@@ -227,9 +163,9 @@ export function setupCampusFinder({L, measure, use, showRoute}) {
     $('field-picker').hidden=false;
     $('route-editor').hidden=true;
     if (!map) {
-      map=L.map('campus-map',{maxZoom:19}).setView(centre,16);
-      const tiles=lightBasemap(L);
-      if ($('basemap').checked) tiles.addTo(map);
+      map=L.map('campus-map',{maxZoom:19});
+      const tiles=streetBasemap(L, $('campus-map-status'));
+      requestAnimationFrame(() => { if ($('basemap').checked) tiles.addTo(map); });
       $('basemap').addEventListener('change',()=>$('basemap').checked?tiles.addTo(map):tiles.remove());
       candidates=L.layerGroup().addTo(map);
       preview=L.layerGroup().addTo(map);

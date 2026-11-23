@@ -73,10 +73,8 @@ input#school-query { width: 100%; padding-left: 36px; height: 38px; }
 .leaflet-container .leaflet-bar { border: 1px solid var(--line); box-shadow: 0 2px 7px #0f172a10; border-radius: 7px; overflow: hidden; }
 .leaflet-bar a { color: var(--ink); }
 .leaflet-control-attribution { font-variant-numeric: tabular-nums; }
+.map-hint:empty { display: none; }
 .leaflet-control-attribution a { color: #42566b; }
-.leaflet-gl-layer { position: absolute; overflow: hidden; pointer-events: none; }
-.leaflet-gl-layer .maplibregl-canvas { position: absolute; inset: 0 auto auto 0; }
-.raster-fallback { filter: grayscale(1) contrast(.88) brightness(1.05); }
 .map-footer { padding: 7px 16px; font-size: 12px; }
 .map-footer label { display: flex; align-items: center; gap: 5px; }
 .map-footer input { margin: 0; }

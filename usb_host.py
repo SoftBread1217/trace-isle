@@ -152,7 +152,7 @@ async def control(ws):
 
 
 ASSETS = {"index.html", "app.js", "route.js", "pair.js", "presets.js", "usb.js", "style.css", "isle.svg",
-          "vendor/leaflet.js", "vendor/leaflet.css", "vendor/maplibre-gl.js", "vendor/leaflet-maplibre-gl.js", "vendor/peerjs.min.js", "vendor/qrcode.js",
+          "vendor/leaflet.js", "vendor/leaflet.css", "vendor/peerjs.min.js", "vendor/qrcode.js",
           "receive.html", "receive.js"}
 
 

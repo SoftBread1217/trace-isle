@@ -2,17 +2,15 @@ import { advancePlayback, canCloseRoute, closeRoute, decodeRoute, encodeRoute, i
   MAX_POINTS, normalizePoints, tripSample, parsePace, formatPace, setRouteSpeed, wrapLongitude } from './route.js?v=4';
 import { setupPairing } from './pair.js?v=5';
 import { setupUSB } from './usb.js?v=10';
-import { LINGSHUI_STADIUM, SYDNEY_HARBOUR, setupCampusFinder, lightBasemap } from './presets.js?v=10';
+import { LINGSHUI_STADIUM, SYDNEY_HARBOUR, setupCampusFinder, streetBasemap } from './presets.js?v=11';
 
 const $ = id => document.getElementById(id);
 const L = window.L;
-const map = L.map('map', { minZoom: 2, maxZoom: 19, zoomControl: true }).setView(SYDNEY_HARBOUR.points[0], 16);
+const map = L.map('map', { minZoom: 2, maxZoom: 19, zoomControl: true }).setView(LINGSHUI_STADIUM.points[0], 16);
 const routeLine = L.polyline([], { color: '#216851', weight: 4, opacity: .95, interactive: false }).addTo(map);
 const cursor = L.circleMarker([0, 0], { radius: 8, color: '#fff', weight: 3, fillColor: '#0c4939', fillOpacity: 1, interactive: false });
 const pins = L.layerGroup().addTo(map);
-const tiles = lightBasemap(L);
-tiles.on('tileerror', () => { $('map-status').textContent = '底图暂不可用'; });
-tiles.on('tileload', () => { $('map-status').textContent = ''; });
+const tiles = streetBasemap(L, $('map-status'));
 
 let route = makeRoute([], 10);
 let target = null;
@@ -413,7 +411,7 @@ function routeFragment() {
 }
 $('share').onclick = () => {
   try {
-    const url = new URL('https://softbread1217.github.io/trace-isle/?v=10');
+    const url = new URL('https://softbread1217.github.io/trace-isle/?v=11');
     url.hash = routeFragment();
     $('share-url').value = url.href;
     $('share-status').textContent = '';
@@ -433,9 +431,7 @@ $('copy').onclick = async () => {
 $('share-field').onclick = () => $('share').click();
 document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
 
-setBasemap();
 changeRoute([], '');
-map.setView(LINGSHUI_STADIUM.points[0], 16);
 if (location.hash.startsWith('#route=')) {
   try {
     const params = new URLSearchParams(location.hash.slice(1));
@@ -450,6 +446,7 @@ if (location.hash.startsWith('#route=')) {
     if (field) $('school-status').textContent = '已载入分享的操场：' + field;
   } catch (error) { notify(error.message, true); }
 }
+setBasemap();
 setupPairing(() => ({
   lat: $('lat-readout').textContent, lon: $('lon-readout').textContent,
   distance: $('distance-readout').textContent, pace: $('speed-readout').textContent,
