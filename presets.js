@@ -79,22 +79,28 @@ export function fitOval(center, outline) {
 const alias = {北大:'北京大学',清华:'清华大学',浙大:'浙江大学',复旦:'复旦大学',武大:'武汉大学',厦大:'厦门大学',上交:'上海交通大学',中大:'中山大学',北航:'北京航空航天大学',中科大:'中国科学技术大学',北邮:'北京邮电大学'};
 const simplify = s => s.toLowerCase().replace(/[\s（）()·－-]+/gu,'');
 export function searchSchools(rows, query) {
-  const terms=query.trim().split(/\s+/).map(t=>simplify(alias[t] || t));
+  const terms=query.trim().replace(/^(北京邮电大学|北邮|bupt)/i,'北京邮电大学 ').trim()
+    .split(/\s+/).map(t=>simplify(alias[t] || t));
   if (!terms[0]) return [];
   return rows.map(row=>{
+    if (row[6]?.specificQuery && !query.includes(row[6].specificQuery)) return {row,score:0};
     const name=simplify(row[0]), hay=simplify(row.slice(0,3).join(' '));
     const score=terms.every(t=>hay.includes(t)) ? terms.reduce((n,t)=>n+(name===t?100:name.startsWith(t)?30:name.includes(t)?15:2),0) : 0;
     return {row,score};
-  }).filter(hit=>hit.score).sort((a,b)=>b.score-a.score || a.row[0].length-b.row[0].length).slice(0,35).map(hit=>hit.row);
+  }).filter(hit=>hit.score).sort((a,b)=>b.score-a.score || (a.row[6]?.order ?? Infinity)-(b.row[6]?.order ?? Infinity) || a.row[0].length-b.row[0].length).slice(0,35).map(hit=>hit.row);
 }
 export function nearbyVenues(rows, school) {
   const [,,,lat,lon,bounds] = school;
+  if (school[6]?.venues) {
+    return school[6].venues.map(field=>({...field, exact:false, reviewed:true,
+      metres:Math.hypot(...offsetFrom([lat,lon],field.center))}));
+  }
   const candidates=[];
   for (const [id,name,y,x,exact,deltas] of rows) {
     const [east,north]=offsetFrom([lat,lon],[y,x]);
     const metres=Math.hypot(east,north);
     const inside=bounds?.length===4 && y>=bounds[0] && x>=bounds[1] && y<=bounds[2] && x<=bounds[3];
-    if (!inside && metres>1800) continue;
+    if (bounds?.length===4 ? !inside : metres>1800) continue;
     const outline=[];
     for(let i=0;i<deltas.length;i+=2) outline.push([y+deltas[i]/1e6,x+deltas[i+1]/1e6]);
     const direction=Math.abs(north)<45 && Math.abs(east)<45 ? '中心' :
@@ -124,7 +130,7 @@ export function setupCampusFinder({L, measure, use}) {
   async function dataset(file) {
     if (cache.has(file)) return cache.get(file);
     const task=(async()=>{
-      const path='campus-data/'+file+'.json?v=6';
+      const path='campus-data/'+file+'.json?v=7';
       let response=await fetch(path);
       // Older local USB helpers only serve the original application assets.
       if (response.status===404 && location.hostname==='127.0.0.1')
@@ -199,7 +205,7 @@ export function setupCampusFinder({L, measure, use}) {
     resetPreview();chosen=field;fieldLabel=field.name;
     for(const button of $('field-results').children)
       button.setAttribute('aria-pressed',String(button.dataset.field===String(field.id)));
-    model=asTemplate || !field.exact ? fitOval(field.center,field.outline) : null;
+    model=asTemplate || !field.exact ? (field.template ? structuredClone(field.template) : fitOval(field.center,field.outline)) : null;
     points=model?stadiumLoop(model):field.outline;
     path=L.polyline(points,{color:'#08735c',weight:5,interactive:false}).addTo(preview);
     startPin=L.circleMarker(points[0],{radius:5,color:'#fff',fillColor:'#173f32',fillOpacity:1}).bindTooltip('起点').addTo(preview);
@@ -218,7 +224,7 @@ export function setupCampusFinder({L, measure, use}) {
     b.onclick=action;container.append(b);return b;
   }
   function thumbnail(button,field) {
-    const shape=field.exact?field.outline:stadiumLoop(fitOval(field.center,field.outline));
+    const shape=field.exact?field.outline:stadiumLoop(field.template ?? fitOval(field.center,field.outline));
     const a=shape.map(p=>offsetFrom(field.center,p));
     const xs=a.map(p=>p[0]), ys=a.map(p=>p[1]);
     const left=Math.min(...xs),top=Math.max(...ys),w=Math.max(...xs)-left,h=top-Math.min(...ys);
@@ -245,15 +251,19 @@ export function setupCampusFinder({L, measure, use}) {
       index ??= await dataset('schools');
       const keys=[];
       const region=bounds?.length===4?bounds:[...center,...center];
-      for(let y=Math.floor((region[0]-.018)/3);y<=Math.floor((region[2]+.018)/3);y++)
-        for(let x=Math.floor((region[1]-.035)/3);x<=Math.floor((region[3]+.035)/3);x++)
-          if(index.tiles.includes(y+'_'+x)) keys.push(y+'_'+x);
+      if (!row[6]?.venues) {
+        for(let y=Math.floor((region[0]-.018)/3);y<=Math.floor((region[2]+.018)/3);y++)
+          for(let x=Math.floor((region[1]-.035)/3);x<=Math.floor((region[3]+.035)/3);x++)
+            if(index.tiles.includes(y+'_'+x)) keys.push(y+'_'+x);
+      }
       const groups=await Promise.all(keys.map(dataset));
       if(current!==revision)return;
       const fields=nearbyVenues(groups.flat(),row);
+      if (row[6]?.boundary) L.polygon(row[6].boundary,{interactive:false,color:'#64776c',weight:2,dashArray:'5 5',fillOpacity:.035}).addTo(candidates);
       fields.forEach((f,i)=>{
         const label=(i+1)+' · '+f.name;
-        const b=choice($('field-results'),label,(f.exact?'地图跑道':'估算模板')+' · 距校区中心约 '+Math.round(f.metres)+' 米',()=>select(f));
+        const source=f.reviewed?(f.shared?'园区共享场地':'已核对校内场地'):'地图候选 · 归属待核对';
+        const b=choice($('field-results'),label,source+' · '+(f.exact?'地图跑道':'估算模板'),()=>select(f));
         b.dataset.field=String(f.id);thumbnail(b,f);
         const marker=L.circleMarker(f.center,{radius:10,color:'#fff',fillColor:'#276044',fillOpacity:1}).addTo(candidates);
         marker.bindTooltip(String(i+1),{permanent:true,direction:'center',className:'field-number'}).on('click',()=>{if(!placing)select(f);});

@@ -6,6 +6,8 @@
 
 ## 数据生成
 
+北邮搜索采用[本科办学地点](https://zsc.bupt.edu.cn/info/1016/1126.htm)口径。校区边界及核对记录保存在 [campus-reviews.json](../tools/campus-reviews.json)，重新生成索引时一并合入。海淀校区的[田径场](https://www.openstreetmap.org/relation/9605496)是由内外边界组成的面，在[西土城路校区](https://www.openstreetmap.org/way/279303636)内；沙河使用[校内田径场范围](https://www.openstreetmap.org/way/685054779)。海南校区以[北邮玛丽女王海南学院](https://www.openstreetmap.org/way/1581708925)为地图锚点，标注[黎安园区共享体育场](https://www.openstreetmap.org/way/1125998153)。这些轮廓用于估算一圈，未提供实测道线。其他有校区矩形边界的条目按边界筛选；只有中心点的条目显示附近候选并提示核对归属。
+
 用 Overpass 导出以下查询的 JSON 文件。学校查询支持附带 bounds，中心位置由 center 或 bounds 获取。
 
 ```overpass

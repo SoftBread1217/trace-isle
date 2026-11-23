@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { advancePlayback, closeRoute, decodeRoute, encodeRoute, makeRoute, normalizePoints, sampleAt, sampleAtDistance, setRouteSpeed } from '../route.js';
 import { LINGSHUI_STADIUM } from '../presets.js';
@@ -112,4 +113,42 @@ test('search matches aliases and separate campuses; nearby venues deduplicate la
   const venues=[[1,'场馆',30,120,0,[]],[2,'田径场',30.0001,120,1,[0,0,10,10,0,0]],[3,'别处',31,120,0,[]]];
   assert.deepEqual(nearbyVenues(venues,rows[0]).map(v=>v.id),[2]);
   assert.deepEqual(nearbyVenues([] ,rows[0]),[]);
+});
+
+test('BUPT school search distinguishes three teaching campuses from specifically named institutions', () => {
+  const { schools } = JSON.parse(readFileSync(new URL('../campus-data/schools.json', import.meta.url)));
+  const campuses = searchSchools(schools, '北邮');
+  assert.equal(campuses.length, 3);
+  assert.deepEqual(searchSchools(schools, '北京邮电大学'), campuses);
+  for (const [i, label] of ['海淀','沙河','海南'].entries()) {
+    assert.deepEqual(searchSchools(schools, '北邮'+label), [campuses[i]]);
+  }
+  assert.equal(searchSchools(schools, '北邮宏福').length, 1);
+  assert.equal(searchSchools(schools, '北邮世纪学院').length, 1);
+  const tile = JSON.parse(readFileSync(new URL('../campus-data/13_38.json', import.meta.url)));
+  const [field] = nearbyVenues(tile,campuses[0]);
+  assert.deepEqual(nearbyVenues(tile,campuses[0]).map(f=>f.id), ['relation/9605496']);
+  assert.ok(field.reviewed);
+  assert.equal(nearbyVenues(tile,campuses[1])[0].id,'way/685054779');
+  assert.ok(nearbyVenues(tile,campuses[2])[0].shared);
+  function inside([y,x],polygon) {
+    let contained=false;
+    for(let i=0,j=polygon.length-1;i<polygon.length;j=i++) {
+      const [a,b]=polygon[i],[c,d]=polygon[j];
+      if((a>y)!=(c>y) && x<b+(d-b)*(y-a)/(c-a)) contained=!contained;
+    }
+    return contained;
+  }
+  for (const school of campuses) {
+    const venue=nearbyVenues([],school)[0];
+    for(const point of stadiumLoop(venue.template)) {
+      assert.ok(inside(point,school[6].boundary) && inside(point,venue.outline));
+    }
+  }
+});
+
+test('known campus bounds exclude an adjacent site even within walking distance',()=>{
+  const school=['校区','','',30,120,[29.999,119.999,30.001,120.001]];
+  const rows=[[1,'校内',30,120,0,[]],[2,'邻校',30,120.004,0,[]]];
+  assert.deepEqual(nearbyVenues(rows,school).map(f=>f.id),[1]);
 });

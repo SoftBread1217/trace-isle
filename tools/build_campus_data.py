@@ -21,9 +21,14 @@ def main():
     args = p.parse_args()
     root = Path(__file__).resolve().parents[1] / "campus-data"
     root.mkdir(exist_ok=True)
+    reviews = json.loads(Path(__file__).with_name("campus-reviews.json").read_bytes())
+    reviewed_sources = {r["source"] for r in reviews}
     cities = load(args.cities) if args.cities else []
     schools = []
     for e in load(args.campuses):
+        source = f"{e['type']}/{e['id']}"
+        if source in reviewed_sources:
+            continue
         tags = e["tags"]
         name = tags.get("name:zh-Hans") or tags.get("name:zh") or tags["name"]
         if not re.search(r"[\u3400-\u9fff]", name):
@@ -44,7 +49,16 @@ def main():
             if dist(nearest) < .6**2:
                 city = nearest["tags"].get("name:zh",nearest["tags"]["name"])+"附近"
         bounds = [round(box[k],5) for k in ("minlat","minlon","maxlat","maxlon")] if box else []
-        schools.append([name, city, aliases, round(lat,6), round(lon,6), bounds])
+        row = [name, city, aliases, round(lat,6), round(lon,6), bounds]
+        separate = {"way/369327881":"世纪", "way/399354071":"宏福"}.get(source)
+        if separate:
+            row.append({"specificQuery": separate})
+        schools.append(row)
+    for order, r in enumerate(reviews):
+        latitudes, longitudes = zip(*r["boundary"])
+        box = [min(latitudes), min(longitudes), max(latitudes), max(longitudes)]
+        schools.append([r["name"], r["locality"], r["aliases"], *r["center"], box,
+                        {"boundary": r["boundary"], "venues": r["venues"], "order": order}])
     tiles = defaultdict(list)
     for e in load(args.tracks) + load(args.stadiums):
         t = e["tags"]

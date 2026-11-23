@@ -2,7 +2,7 @@ import { advancePlayback, canCloseRoute, closeRoute, decodeRoute, encodeRoute, i
   MAX_POINTS, normalizePoints, tripSample, parsePace, formatPace, setRouteSpeed, wrapLongitude } from './route.js?v=4';
 import { setupPairing } from './pair.js?v=5';
 import { setupUSB } from './usb.js?v=6';
-import { LINGSHUI_STADIUM, SYDNEY_HARBOUR, setupCampusFinder } from './presets.js?v=6';
+import { LINGSHUI_STADIUM, SYDNEY_HARBOUR, setupCampusFinder } from './presets.js?v=7';
 
 const $ = id => document.getElementById(id);
 const L = window.L;
@@ -412,7 +412,7 @@ function routeFragment() {
 }
 $('share').onclick = () => {
   try {
-    const url = new URL('https://softbread1217.github.io/trace-isle/?v=6');
+    const url = new URL('https://softbread1217.github.io/trace-isle/?v=7');
     url.hash = routeFragment();
     $('share-url').value = url.href;
     $('share-status').textContent = '';
