@@ -3,11 +3,17 @@ import argparse
 import json
 import math
 import re
+import subprocess
 from collections import defaultdict
 from pathlib import Path
+from shapely.geometry import LineString, Polygon
+from campus_geometry import assign_fields, osm_area
 
 def load(path):
-    return json.loads(Path(path).read_bytes())["elements"]
+    export = json.loads(Path(path).read_bytes())
+    if export.get("remark"):
+        raise ValueError(f"Incomplete Overpass export: {path}: {export['remark']}")
+    return export["elements"]
 
 def write(path, data):
     path.write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
@@ -17,6 +23,7 @@ def main():
     p.add_argument("campuses")
     p.add_argument("tracks")
     p.add_argument("stadiums")
+    p.add_argument("--grounds", nargs="+", default=[], help="additional named grounds and multipolygon venues")
     p.add_argument("--cities")
     args = p.parse_args()
     root = Path(__file__).resolve().parents[1] / "campus-data"
@@ -25,9 +32,14 @@ def main():
     reviewed_sources = {r["source"] for r in reviews}
     cities = load(args.cities) if args.cities else []
     schools = []
+    areas, area_schools = [], []
     for e in load(args.campuses):
         source = f"{e['type']}/{e['id']}"
         if source in reviewed_sources:
+            area = osm_area(e)
+            if area is not None:
+                areas.append(area)
+                area_schools.append(None)
             continue
         tags = e["tags"]
         name = tags.get("name:zh-Hans") or tags.get("name:zh") or tags["name"]
@@ -51,8 +63,14 @@ def main():
         bounds = [round(box[k],5) for k in ("minlat","minlon","maxlat","maxlon")] if box else []
         row = [name, city, aliases, round(lat,6), round(lon,6), bounds]
         separate = {"way/369327881":"世纪", "way/399354071":"宏福"}.get(source)
-        if separate:
-            row.append({"specificQuery": separate})
+        meta = {"specificQuery": separate} if separate else {}
+        area = osm_area(e)
+        if area is not None:
+            areas.append(area)
+            area_schools.append(row)
+            meta["fieldIds"] = []
+        if meta:
+            row.append(meta)
         schools.append(row)
     for order, r in enumerate(reviews):
         latitudes, longitudes = zip(*r["boundary"])
@@ -60,7 +78,13 @@ def main():
         schools.append([r["name"], r["locality"], r["aliases"], *r["center"], box,
                         {"boundary": r["boundary"], "venues": r["venues"], "order": order}])
     tiles = defaultdict(list)
-    for e in load(args.tracks) + load(args.stadiums):
+    footprints, records = [], []
+    seen = set()
+    for e in (item for path in [args.tracks, args.stadiums, *args.grounds] for item in load(path)):
+        key = (e["type"], e["id"])
+        if key in seen:
+            continue
+        seen.add(key)
         t = e["tags"]
         track = t.get("leisure") == "track"
         sports = set(t.get("sport","").split(";"))
@@ -72,19 +96,23 @@ def main():
             continue
         if track and t.get("sport") and not running:
             continue
-        geom = e.get("geometry", [])
-        points = [(g["lat"],g["lon"]) for g in geom]
+        if t.get("leisure") not in ("stadium", "track") and not re.search(r"操场|田径|运动场|操場|田徑|運動場",label):
+            continue
+        footprint = osm_area(e)
+        if footprint is None:
+            continue
+        shells = getattr(footprint, "geoms", [footprint])
+        if len(shells) != 1:
+            continue
+        points = [(y,x) for x,y in shells[0].exterior.coords]
+        # Track surfaces can have an infield hole. Test the whole outside
+        # footprint so an estimated loop cannot surround an off-campus parcel.
+        footprint = Polygon(shells[0].exterior)
         if track and (len(points)<6 or points[0] != points[-1]):
             continue
-        pt = e.get("center") or {}
-        if points:
-            lat = (min(q[0] for q in points)+max(q[0] for q in points))/2
-            lon = (min(q[1] for q in points)+max(q[1] for q in points))/2
-        elif "lat" in pt:
-            lat,lon = pt["lat"],pt["lon"]
-        else:
-            continue
-        exact = track and running and t.get("area") != "yes"
+        west, south, east, north = footprint.bounds
+        lat, lon = (south+north)/2, (west+east)/2
+        exact = track and running and e["type"] == "way" and t.get("area") != "yes"
         if exact:
             factor = math.cos(math.radians(lat))
             length = sum(math.hypot(b[0]-a[0], (b[1]-a[1])*factor)*111195 for a,b in zip(points,points[1:]))
@@ -95,7 +123,32 @@ def main():
             points = [points[round(i*(len(points)-1)/145)] for i in range(146)]
         coords = [v for a,b in points for v in (round((a-lat)*1e6),round((b-lon)*1e6))]
         tile = f"{math.floor(lat/3)}_{math.floor(lon/3)}"
-        tiles[tile].append([e["id"],label,round(lat,6),round(lon,6),int(exact),coords])
+        field_id = e["id"] if e["type"] == "way" else f"relation/{e['id']}"
+        records.append((tile,[field_id,label,round(lat,6),round(lon,6),int(exact),coords,int(track)]))
+        footprints.append(footprint)
+    if not areas:
+        raise ValueError("Campus export contains no complete polygons. Export using out geom.")
+    named_grounds = defaultdict(list)
+    matches = []
+    for owner, shape, (tile, record) in zip(assign_fields(areas, footprints), footprints, records):
+        if owner is None or area_schools[owner] is None:
+            continue
+        matches.append((owner, tile, record, shape))
+        if record[1]:
+            named_grounds[owner].append((shape, record[1]))
+    # A track inside a named sports centre often has no name of its own.
+    for owner, _, record, shape in matches:
+        if record[6] and not record[1]:
+            parents = [(outer.area, name) for outer, name in named_grounds[owner] if outer.covers(shape)]
+            if parents:
+                record[1] = min(parents)[1]
+    routes = subprocess.run(["node", Path(__file__).with_name("preview_footprints.mjs")],
+                            input=json.dumps([record for _,_,record,_ in matches]).encode(),
+                            stdout=subprocess.PIPE, check=True)
+    for (owner,tile,record,_), route in zip(matches,json.loads(routes.stdout),strict=True):
+        if areas[owner].covers(LineString([(x,y) for y,x in route])):
+            area_schools[owner][6]["fieldIds"].append(record[0])
+            tiles[tile].append(record)
     write(root/"schools.json", {"schools":schools, "tiles":sorted(tiles)})
     for key, rows in tiles.items():
         write(root/(key+".json"),rows)

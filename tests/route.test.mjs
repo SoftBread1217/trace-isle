@@ -110,8 +110,10 @@ test('search matches aliases and separate campuses; nearby venues deduplicate la
   const rows=[['浙江大学紫金港校区','杭州','',30,120,[]],['浙江大学玉泉校区','杭州','',30,120,[]]];
   assert.equal(searchSchools(rows,'浙大').length,2);
   assert.deepEqual(searchSchools(rows,'浙大 紫金港'),[rows[0]]);
-  const venues=[[1,'场馆',30,120,0,[]],[2,'田径场',30.0001,120,1,[0,0,10,10,0,0]],[3,'别处',31,120,0,[]]];
-  assert.deepEqual(nearbyVenues(venues,rows[0]).map(v=>v.id),[2]);
+  const venues=[[1,'',30,120,0,[]],[2,'田径场',30.0001,120,1,[0,0,10,10,0,0]],[3,'别处',31,120,0,[]]];
+  assert.deepEqual(nearbyVenues(venues,rows[0]),[]);
+  const verified=[...rows[0],{fieldIds:[1,2]}];
+  assert.deepEqual(nearbyVenues(venues,verified).map(v=>v.id),[2]);
   assert.deepEqual(nearbyVenues([] ,rows[0]),[]);
 });
 
@@ -147,8 +149,19 @@ test('BUPT school search distinguishes three teaching campuses from specifically
   }
 });
 
-test('known campus bounds exclude an adjacent site even within walking distance',()=>{
+test('a bounding rectangle is insufficient evidence of campus membership',()=>{
   const school=['校区','','',30,120,[29.999,119.999,30.001,120.001]];
   const rows=[[1,'校内',30,120,0,[]],[2,'邻校',30,120.004,0,[]]];
-  assert.deepEqual(nearbyVenues(rows,school).map(f=>f.id),[1]);
+  assert.deepEqual(nearbyVenues(rows,school),[]);
+});
+
+test('Wuhan University includes its named grounds and excludes both reported off-campus venues',()=>{
+  const {schools}=JSON.parse(readFileSync(new URL('../campus-data/schools.json',import.meta.url)));
+  const school=searchSchools(schools,'武大')[0];
+  const tile=JSON.parse(readFileSync(new URL('../campus-data/10_38.json',import.meta.url)));
+  const fields=nearbyVenues(tile,school);
+  for(const name of ['桂园操场','九一二操场','工学部操场','信息学部操场']) {
+    assert.equal(fields.filter(f=>f.name===name).length,1,name);
+  }
+  for(const id of [1478807917,1494450134]) assert.ok(!school[6].fieldIds.includes(id));
 });

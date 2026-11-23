@@ -90,32 +90,37 @@ export function searchSchools(rows, query) {
   }).filter(hit=>hit.score).sort((a,b)=>b.score-a.score || (a.row[6]?.order ?? Infinity)-(b.row[6]?.order ?? Infinity) || a.row[0].length-b.row[0].length).slice(0,35).map(hit=>hit.row);
 }
 export function nearbyVenues(rows, school) {
-  const [,,,lat,lon,bounds] = school;
+  const [,,,lat,lon] = school;
   if (school[6]?.venues) {
     return school[6].venues.map(field=>({...field, exact:false, reviewed:true,
       metres:Math.hypot(...offsetFrom([lat,lon],field.center))}));
   }
+  const ids=new Set(school[6]?.fieldIds);
   const candidates=[];
-  for (const [id,name,y,x,exact,deltas] of rows) {
+  for (const [id,name,y,x,exact,deltas,track=0] of rows) {
+    if(!ids.has(id)) continue;
     const [east,north]=offsetFrom([lat,lon],[y,x]);
     const metres=Math.hypot(east,north);
-    const inside=bounds?.length===4 && y>=bounds[0] && x>=bounds[1] && y<=bounds[2] && x<=bounds[3];
-    if (bounds?.length===4 ? !inside : metres>1800) continue;
     const outline=[];
     for(let i=0;i<deltas.length;i+=2) outline.push([y+deltas[i]/1e6,x+deltas[i+1]/1e6]);
     const direction=Math.abs(north)<45 && Math.abs(east)<45 ? '中心' :
       (Math.abs(north)>Math.abs(east)*.45 ? (north>0?'北':'南'):'') +
       (Math.abs(east)>Math.abs(north)*.45 ? (east>0?'东':'西'):'');
     candidates.push({id,name:name || direction.replace('北东','东北').replace('北西','西北').replace('南东','东南').replace('南西','西南')+'侧操场',
-      center:[y,x],outline,exact:Boolean(exact),metres,inside});
+      center:[y,x],outline,exact:Boolean(exact),metres,mappedName:name,track});
   }
   // Several mapped lanes or a stadium boundary can represent the same field.
-  candidates.sort((a,b)=>Number(b.exact)-Number(a.exact) || Number(Boolean(b.outline.length))-Number(Boolean(a.outline.length)) || a.metres-b.metres);
+  candidates.sort((a,b)=>Number(b.exact)-Number(a.exact) || b.track-a.track || Number(Boolean(b.mappedName))-Number(Boolean(a.mappedName)) || a.metres-b.metres);
   const unique=[];
   for (const candidate of candidates) {
-    if (!unique.some(other=>Math.hypot(...offsetFrom(other.center,candidate.center))<38)) unique.push(candidate);
+    const same=unique.find(other=>Math.hypot(...offsetFrom(other.center,candidate.center))<38 &&
+      (!other.mappedName || !candidate.mappedName || other.mappedName===candidate.mappedName));
+    if(!same) unique.push(candidate);
+    else if(!same.mappedName && candidate.mappedName) {
+      same.name=same.mappedName=candidate.mappedName;
+    }
   }
-  return unique.sort((a,b)=>Number(b.inside)-Number(a.inside)||a.metres-b.metres).slice(0,18);
+  return unique.sort((a,b)=>a.metres-b.metres);
 }
 
 
@@ -130,7 +135,7 @@ export function setupCampusFinder({L, measure, use}) {
   async function dataset(file) {
     if (cache.has(file)) return cache.get(file);
     const task=(async()=>{
-      const path='campus-data/'+file+'.json?v=7';
+      const path='campus-data/'+file+'.json?v=8';
       let response=await fetch(path);
       // Older local USB helpers only serve the original application assets.
       if (response.status===404 && location.hostname==='127.0.0.1')
@@ -246,14 +251,14 @@ export function setupCampusFinder({L, measure, use}) {
     if (row===demoSchool) {
       select({name:'陵水体育场',center:centre,outline:LINGSHUI_STADIUM.points,exact:true,estimated:true});return;
     }
-    status('正在查找校区附近的场地…');
+    status('正在查找校界内的操场…');
     try {
       index ??= await dataset('schools');
       const keys=[];
       const region=bounds?.length===4?bounds:[...center,...center];
-      if (!row[6]?.venues) {
-        for(let y=Math.floor((region[0]-.018)/3);y<=Math.floor((region[2]+.018)/3);y++)
-          for(let x=Math.floor((region[1]-.035)/3);x<=Math.floor((region[3]+.035)/3);x++)
+      if (row[6]?.fieldIds?.length) {
+        for(let y=Math.floor(region[0]/3);y<=Math.floor(region[2]/3);y++)
+          for(let x=Math.floor(region[1]/3);x<=Math.floor(region[3]/3);x++)
             if(index.tiles.includes(y+'_'+x)) keys.push(y+'_'+x);
       }
       const groups=await Promise.all(keys.map(dataset));
@@ -262,7 +267,7 @@ export function setupCampusFinder({L, measure, use}) {
       if (row[6]?.boundary) L.polygon(row[6].boundary,{interactive:false,color:'#64776c',weight:2,dashArray:'5 5',fillOpacity:.035}).addTo(candidates);
       fields.forEach((f,i)=>{
         const label=(i+1)+' · '+f.name;
-        const source=f.reviewed?(f.shared?'园区共享场地':'已核对校内场地'):'地图候选 · 归属待核对';
+        const source=f.reviewed?(f.shared?'园区共享场地':'已核对校内场地'):'位于校区边界内';
         const b=choice($('field-results'),label,source+' · '+(f.exact?'地图跑道':'估算模板'),()=>select(f));
         b.dataset.field=String(f.id);thumbnail(b,f);
         const marker=L.circleMarker(f.center,{radius:10,color:'#fff',fillColor:'#276044',fillOpacity:1}).addTo(candidates);
@@ -270,7 +275,8 @@ export function setupCampusFinder({L, measure, use}) {
       });
       if(fields.length>1) map.fitBounds(L.latLngBounds(fields.map(f=>f.center)),{padding:[30,30],maxZoom:17,animate:false});
       if(fields.length===1) select(fields[0]);
-      else status(fields.length?'选择候选场地并核对地图。附近列表也可能包含相邻学校的操场。':'还没有收录附近的跑道。点「在地图上指定操场」，再点操场中心。');
+      else if(fields.length) status('请选择要预览的校内操场。');
+      else status((row[6]?.fieldIds ? '这个校区的边界内暂无已收录的操场。' : '地图缺少可核实的校区边界。')+'可点「在地图上指定操场」手动选择。');
     } catch { if(current===revision)status('场地资料加载失败。可以重试或在地图上指定操场。'); }
   }
   $('school-search').onsubmit=async event=>{
