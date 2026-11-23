@@ -2,7 +2,7 @@ import { advancePlayback, canCloseRoute, closeRoute, decodeRoute, encodeRoute, i
   MAX_POINTS, normalizePoints, tripSample, parsePace, formatPace, setRouteSpeed, wrapLongitude } from './route.js?v=4';
 import { setupPairing } from './pair.js?v=5';
 import { setupUSB } from './usb.js?v=10';
-import { LINGSHUI_STADIUM, SYDNEY_HARBOUR, setupCampusFinder, sharedTrackPoints, streetBasemap } from './presets.js?v=12';
+import { LINGSHUI_STADIUM, QUEEN_MARY_MILE_END, setupCampusFinder, sharedTrackPoints, streetBasemap } from './presets.js?v=13';
 
 const $ = id => document.getElementById(id);
 const L = window.L;
@@ -322,7 +322,7 @@ function loadPreset(preset) {
   notify('');
 }
 
-$('example').onclick = () => { closePicker(); loadPreset(SYDNEY_HARBOUR); };
+$('example').onclick = () => { closePicker(); loadPreset(QUEEN_MARY_MILE_END); };
 $('stadium').onclick = () => { closePicker(); loadPreset(LINGSHUI_STADIUM); };
 $('draw').onclick = () => {
   if (drawing && route.points.length === 1) {
@@ -411,7 +411,7 @@ function routeFragment() {
 }
 $('share').onclick = () => {
   try {
-    const url = new URL('https://softbread1217.github.io/trace-isle/?v=12');
+    const url = new URL('https://softbread1217.github.io/trace-isle/?v=13');
     url.hash = routeFragment();
     $('share-url').value = url.href;
     $('share-status').textContent = '';
@@ -445,6 +445,9 @@ if (location.hash.startsWith('#route=')) {
     syncControls();
     if (field) $('school-status').textContent = '已载入分享的操场：' + field;
   } catch (error) { notify(error.message, true); }
+}
+else if (new URLSearchParams(location.search).get('preset') === 'mile-end') {
+  loadPreset(QUEEN_MARY_MILE_END);
 }
 setBasemap();
 setupPairing(() => ({
