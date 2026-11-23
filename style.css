@@ -46,6 +46,16 @@ a { color: inherit; }
 .intro p { color: var(--muted); margin-top: .65rem; }
 .intro > button { background: var(--deep); color: #fff; border-color: var(--deep); flex-shrink: 0; }
 .intro > button:hover:not(:disabled) { background: #245244; }
+.intro-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .55rem; }
+#device-state, .helper { font-size: .85rem; color: var(--muted); }
+.helper { margin-top: .55rem; }
+.helper:empty { display: none; }
+.helper.error { color: #903f25; }
+#pace { width: 100%; min-width: 0; min-height: 2.65rem; border: 1px solid var(--line); border-radius: .6rem; padding: .45rem .75rem; }
+.pace-steps { align-self: end; display: flex; gap: .3rem; }
+.pace-steps button { flex: 1; padding-inline: .25rem; white-space: nowrap; }
+#pair-qr { max-width: 100%; margin-inline: auto; image-rendering: pixelated; }
+.handset { max-width: 32rem; padding-block: 2rem; display: grid; gap: 1rem; }
 .workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(19rem, 24rem); gap: 1rem; align-items: start; }
 .panel { background: #fff; border: 1px solid var(--line); border-radius: .95rem; min-width: 0; overflow: hidden; }
 .panel-head { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: 1rem 1.15rem; }

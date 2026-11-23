@@ -2,6 +2,30 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { advancePlayback, closeRoute, decodeRoute, encodeRoute, makeRoute, normalizePoints, sampleAt, sampleAtDistance, setRouteSpeed } from '../route.js';
 import { LINGSHUI_STADIUM } from '../presets.js';
+import { parsePace, formatPace, tripSample } from '../route.js';
+
+test('pace, target and legacy sharing use the same distance and time units', () => {
+  assert.equal(formatPace(parsePace('5：30')), '5:30');
+  for (const wrong of ['5.30', '6:60', '0:00', '61:00']) assert.throws(() => parsePace(wrong));
+  const route = makeRoute(LINGSHUI_STADIUM.points, parsePace('5:30'));
+  const finish = advancePlayback(route, { metres: 0, elapsed: 0 }, 3000, 2000);
+  assert.equal(finish.metres, 2000);
+  assert.ok(Math.abs(finish.elapsed - 660) < 1e-8);
+  assert.equal(decodeRoute(encodeRoute({ ...route, target: 2000 })).target, 2000);
+  assert.throws(() => encodeRoute({ ...route, target: -1 }));
+});
+
+test('a longer trip loops a circuit and reverses smoothly on an open route', () => {
+  for (const points of [LINGSHUI_STADIUM.points, [[0, 0], [0, .01]]]) {
+    const route = makeRoute(points, 10);
+    const m = route.metres;
+    const after = tripSample(route, m * 1.25);
+    const expected = sampleAtDistance(route, m * (points.length === 2 ? .75 : .25));
+    assert.equal(after.metres, m * 1.25);
+    expected.point.forEach((v, i) => assert.ok(Math.abs(after.point[i] - v) < 1e-9));
+    assert.deepEqual(tripSample(route, 2 * m).point, points[0]);
+  }
+});
 
 test('rejects coordinates outside the supported ranges and drops neighboring duplicates', () => {
   assert.deepEqual(normalizePoints([[12, 34], [12, 34], [13, 34]]), [[12, 34], [13, 34]]);

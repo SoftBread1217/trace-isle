@@ -1,5 +1,6 @@
 import { advancePlayback, canCloseRoute, closeRoute, decodeRoute, encodeRoute, isClosedRoute, makeRoute,
-  MAX_POINTS, normalizePoints, sampleAtDistance, setRouteSpeed, wrapLongitude } from './route.js?v=3';
+  MAX_POINTS, normalizePoints, tripSample, parsePace, formatPace, setRouteSpeed, wrapLongitude } from './route.js?v=4';
+import { setupPairing } from './pair.js?v=4';
 import { LINGSHUI_STADIUM, SYDNEY_HARBOUR } from './presets.js?v=3';
 
 const $ = id => document.getElementById(id);
@@ -13,7 +14,9 @@ const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { at
 tiles.on('tileerror', () => { $('map-status').textContent = '底图暂不可用'; });
 tiles.on('tileload', () => { $('map-status').textContent = ''; });
 
-let route = makeRoute([], 5);
+let route = makeRoute([], 10);
+let target = null;
+const tripLength = () => route.metres ? target ?? route.metres : 0;
 let title = '';
 let drawing = false;
 let pickingFixed = false;
@@ -55,13 +58,13 @@ function visiblePoints(points) {
 }
 
 function paintSample() {
-  const sample = fixedPoint ? { point: fixedPoint, metres: 0 } : sampleAtDistance(route, motion.metres);
+  const sample = fixedPoint ? { point: fixedPoint, metres: 0 } : tripSample(route, motion.metres);
   if (sample) {
     const [lat, lon] = sample.point;
     $('lat-readout').textContent = lat.toFixed(6);
     $('lon-readout').textContent = lon.toFixed(6);
     $('distance-readout').textContent = formatDistance(sample.metres);
-    $('speed-readout').textContent = `${!fixedPoint && mode === 'playing' ? route.speed.toFixed(1) : '0.0'} km/h`;
+    $('speed-readout').textContent = !fixedPoint && mode === 'playing' ? formatPace(route.speed) + ' /km' : '—';
     const viewed = map.getCenter().lng;
     cursor.setLatLng([lat, viewed + wrapLongitude(lon - viewed)]);
     if (!map.hasLayer(cursor)) cursor.addTo(map);
@@ -69,10 +72,10 @@ function paintSample() {
     for (const id of ['lat-readout', 'lon-readout', 'distance-readout', 'speed-readout']) $(id).textContent = '—';
     cursor.remove();
   }
-  const remaining = Math.max(0, route.metres - motion.metres) / (route.speed / 3.6);
-  $('total-time').textContent = fixedPoint || !route.points.length ? '—' : formatClock(Math.ceil(remaining));
+  const remaining = Math.max(0, tripLength() - motion.metres) / (route.speed / 3.6);
+  $('total-time').textContent = fixedPoint || !route.points.length ? '—' : formatClock(Math.ceil(remaining - 1e-9));
   $('elapsed').textContent = fixedPoint ? '定点模式' : `已用 ${formatClock(motion.elapsed)}`;
-  $('progress').value = !fixedPoint && route.metres ? String(Math.round(1000 * motion.metres / route.metres)) : '0';
+  $('progress').value = !fixedPoint && tripLength() ? String(Math.round(1000 * motion.metres / tripLength())) : '0';
 }
 
 function syncControls() {
@@ -96,7 +99,7 @@ function syncControls() {
     $(id).hidden = Boolean(fixedPoint);
     $(id).disabled = !count || drawing;
   }
-  for (const id of ['speed', 'speed-slider', 'rate']) $(id).disabled = Boolean(fixedPoint);
+  for (const id of ['pace', 'rate', 'target']) $(id).disabled = Boolean(fixedPoint) || !route.metres;
   $('return-to-route').hidden = !fixedPoint;
   $('progress').disabled = !route.metres || Boolean(fixedPoint) || drawing;
   $('draw').setAttribute('aria-pressed', String(drawing));
@@ -110,8 +113,10 @@ function syncControls() {
   $('route-name').textContent = title || '用地图或经纬度添加坐标';
   $('point-count').textContent = `${count} 个点${isClosedRoute(route.points) ? ' · 已闭合' : ''}`;
   $('total-distance').textContent = fixedPoint ? '0 m' : count ? formatDistance(route.metres) : '—';
-  for (const button of document.querySelectorAll('[data-speed-step]')) {
-    button.disabled = Boolean(fixedPoint) || (Number(button.dataset.speedStep) < 0 ? route.speed <= 1 : route.speed >= 120);
+  const repeat = isClosedRoute(route.points) ? '超过一圈会继续绕圈' : '超过原长会沿原路折返';
+  $('trip-hint').textContent = route.metres && !fixedPoint ? `本次回放 ${formatDistance(tripLength())} · ${repeat}。` : '';
+  for (const button of document.querySelectorAll('[data-pace-step]')) {
+    button.disabled = $('pace').disabled || (Number(button.dataset.paceStep) < 0 ? route.speed >= 120 : route.speed <= 1);
   }
 }
 
@@ -131,8 +136,8 @@ function changeRoute(points, name, { speed = route.speed, fit = false } = {}) {
   mode = 'ready';
   title = next.points.length ? name : '';
   route = next;
-  $('speed').value = String(speed);
-  $('speed-slider').value = String(speed);
+  $('pace').value = formatPace(speed);
+  $('setting-error').textContent = '';
   const positions = visiblePoints(route.points);
   routeLine.setLatLngs(positions);
   pins.clearLayers();
@@ -149,10 +154,10 @@ function advanceTo(now) {
   if (mode !== 'playing') return;
   if (lastTick === null) lastTick = now;
   if (now > lastTick) {
-    motion = advancePlayback(route, motion, (now - lastTick) / 1000 * playbackRate);
+    motion = advancePlayback(route, motion, (now - lastTick) / 1000 * playbackRate, tripLength());
     lastTick = now;
   }
-  if (motion.metres >= route.metres) {
+  if (motion.metres >= tripLength()) {
     stopFrame();
     mode = 'done';
     syncControls();
@@ -199,13 +204,12 @@ function applyFixedPoint(point, { centre = true } = {}) {
   notify('固定位置已发送到页面的定位接收器。');
 }
 
-function setSpeed(speed, source) {
+function setSpeed(speed) {
   if (fixedPoint || speed === route.speed) return;
   const next = setRouteSpeed(route, speed);
   advanceTo(performance.now());
   route = next;
-  if (source !== 'number') $('speed').value = String(speed);
-  $('speed-slider').value = String(speed);
+  $('pace').value = formatPace(speed);
   paintSample();
   syncControls();
 }
@@ -243,7 +247,7 @@ $('play').onclick = () => {
     mode = 'fixed';
     paintSample();
   } else {
-    if (motion.metres >= route.metres) motion = initialMotion();
+    if (motion.metres >= tripLength()) motion = initialMotion();
     mode = 'playing';
     lastTick = performance.now();
     paintSample();
@@ -263,30 +267,44 @@ $('return-to-route').onclick = () => {
 $('progress').oninput = () => {
   stopFrame();
   const fraction = Number($('progress').value) / 1000;
-  motion = { metres: fraction * route.metres, elapsed: fraction * route.seconds };
+  motion = { metres: fraction * tripLength(), elapsed: fraction * tripLength() / (route.speed / 3.6) };
   mode = fraction === 1 ? 'done' : 'paused';
   paintSample();
   syncControls();
 };
-$('speed').oninput = () => {
-  if ($('speed').validity.valid && $('speed').value) setSpeed($('speed').valueAsNumber, 'number');
-};
-$('speed').onchange = () => {
+$('pace').onchange = () => {
   try {
-    if (!$('speed').validity.valid) throw new Error('请输入 1–120 公里/小时，最多保留一位小数。');
-    setSpeed($('speed').valueAsNumber);
-    $('speed').value = String(route.speed);
-    notify('');
+    setSpeed(parsePace($('pace').value));
+    $('setting-error').textContent = '';
   } catch (error) {
-    $('speed').value = String(route.speed);
-    notify(error.message, true);
+    $('setting-error').textContent = error.message;
   }
+  $('pace').value = formatPace(route.speed);
 };
-$('speed-slider').oninput = () => setSpeed($('speed-slider').valueAsNumber);
-for (const button of document.querySelectorAll('[data-speed-step]')) {
+$('target').onchange = () => {
+  const field = $('target');
+  const next = field.value ? Math.round(field.valueAsNumber * 1000) : null;
+  advanceTo(performance.now());
+  if (!field.validity.valid || (next ?? route.metres) < motion.metres) {
+    field.value = target === null ? '' : String(target / 1000);
+    $('setting-error').textContent = '目标须在 0.001–1000 公里内，且不能短于已走距离。缩短行程前可先重置。';
+    return;
+  }
+  target = next;
+  if (mode === 'done' && motion.metres < tripLength()) mode = 'paused';
+  advanceTo(performance.now());
+  $('setting-error').textContent = '';
+  paintSample();
+  syncControls();
+};
+for (const input of [$('pace'), $('target')]) {
+  input.onkeydown = event => { if (event.key === 'Enter') input.blur(); };
+}
+for (const button of document.querySelectorAll('[data-pace-step]')) {
   button.onclick = () => {
-    const increased = Math.round((route.speed + Number(button.dataset.speedStep)) * 10) / 10;
-    setSpeed(Math.max(1, Math.min(120, increased)));
+    const seconds = Math.round(3600 / route.speed) + Number(button.dataset.paceStep);
+    setSpeed(3600 / Math.max(30, Math.min(3600, seconds)));
+    $('setting-error').textContent = '';
   };
 }
 $('rate').onchange = () => {
@@ -384,7 +402,7 @@ $('export').onclick = () => {
 $('share').onclick = () => {
   try {
     const url = new URL(location.href);
-    url.hash = `route=${encodeRoute(fixedPoint ? { points: [fixedPoint], speed: route.speed } : route)}`;
+    url.hash = `route=${encodeRoute(fixedPoint ? { points: [fixedPoint], speed: route.speed } : { ...route, target })}`;
     $('share-url').value = url.href;
     $('share-status').textContent = '';
     $('share-dialog').showModal();
@@ -406,7 +424,15 @@ setBasemap();
 loadPreset(SYDNEY_HARBOUR);
 if (location.hash.startsWith('#route=')) {
   try {
-    const { points, speed } = decodeRoute(location.hash.slice(7));
+    const shared = decodeRoute(location.hash.slice(7));
+    const { points, speed } = shared;
+    target = shared.target ?? null;
+    $('target').value = target == null ? '' : String(target / 1000);
     changeRoute(points, '分享的测试路线', { speed, fit: true });
   } catch (error) { notify(error.message, true); }
 }
+setupPairing(() => ({
+  lat: $('lat-readout').textContent, lon: $('lon-readout').textContent,
+  distance: $('distance-readout').textContent, pace: $('speed-readout').textContent,
+  mode: $('state').textContent
+}));

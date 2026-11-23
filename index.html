@@ -8,9 +8,11 @@
   <title>迹屿 · Trace Isle</title>
   <link rel="icon" href="./isle.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./vendor/leaflet.css">
-  <link rel="stylesheet" href="./style.css?v=3">
+  <link rel="stylesheet" href="./style.css?v=4">
   <script defer src="./vendor/leaflet.js"></script>
-  <script type="module" src="./app.js?v=3"></script>
+  <script defer src="./vendor/peerjs.min.js"></script>
+  <script defer src="./vendor/qrcode.js"></script>
+  <script type="module" src="./app.js?v=4"></script>
 </head>
 <body>
   <header class="top"><div class="wrap top-inner">
@@ -20,7 +22,7 @@
   <main class="wrap">
     <section class="intro" aria-labelledby="title">
       <div><h1 id="title">轨迹实验室</h1><p>在地图上画一条路线，看看位置如何沿时间变化。</p></div>
-      <button id="share" type="button" disabled>分享测试链接</button>
+      <div class="intro-actions"><button id="connect" class="primary" type="button">连接手机</button><span id="device-state" role="status">未连接</span><button id="share" type="button" disabled>分享测试链接</button></div>
     </section>
     <div class="workspace">
       <section class="panel route-panel" aria-labelledby="route-title">
@@ -54,28 +56,35 @@
       <aside class="side" aria-label="播放和定位读数">
         <section class="panel player" aria-labelledby="player-title">
           <div class="panel-head"><h2 id="player-title">路线回放</h2><span id="state" class="state" role="status">就绪</span></div>
-          <div class="stats"><div><span>总距离</span><strong id="total-distance">—</strong></div><div><span>预计剩余</span><strong id="total-time">—</strong></div></div>
+          <div class="stats"><div><span>路线原长</span><strong id="total-distance">—</strong></div><div><span>剩余运动时间</span><strong id="total-time">—</strong></div></div>
           <div class="settings">
-            <label>模拟速度（km/h）<input id="speed" type="number" min="1" max="120" step="0.1" inputmode="decimal" value="5"></label>
-            <label>播放倍率<select id="rate"><option value="1">1×</option><option value="2">2×</option><option value="5" selected>5×</option><option value="10">10×</option></select></label>
+            <label>目标距离（公里）<input id="target" type="number" min="0.001" max="1000" step="0.001" inputmode="decimal" placeholder="按路线原长"></label>
+            <label>跑步配速（分:秒/公里）<input id="pace" type="text" value="6:00" maxlength="5" spellcheck="false"></label>
           </div>
-          <div class="speed-control" role="group" aria-label="实时调速">
-            <button type="button" data-speed-step="-1" aria-label="减速 1 公里每小时">−1</button>
-            <input id="speed-slider" type="range" aria-label="实时调速（km/h）" min="1" max="120" step="0.1" value="5">
-            <button type="button" data-speed-step="1" aria-label="加速 1 公里每小时">+1</button>
+          <div class="settings"><label>预览倍率<select id="rate"><option value="1" selected>1×</option><option value="2">2×</option><option value="5">5×</option><option value="10">10×</option></select></label>
+            <div class="pace-steps"><button type="button" data-pace-step="-5">快 5 秒</button><button type="button" data-pace-step="5">慢 5 秒</button></div>
           </div>
+          <p class="helper" id="trip-hint"></p><p class="helper error" id="setting-error" role="status"></p>
           <label class="progress-label" for="progress"><span>路线进度</span><span id="elapsed">已用 00:00</span></label>
           <input id="progress" class="progress" type="range" min="0" max="1000" value="0" step="1">
           <div class="transport"><button id="play" class="primary" type="button">播放</button><button id="reset" type="button">重置</button><button id="return-to-route" type="button" hidden>返回路线</button></div>
         </section>
         <section id="receiver" class="panel receiver" aria-labelledby="receiver-title">
           <div class="panel-head"><h2 id="receiver-title">定位接收器</h2><span class="tag">模拟数据</span></div>
-          <dl class="readings"><div><dt>纬度</dt><dd id="lat-readout">—</dd></div><div><dt>经度</dt><dd id="lon-readout">—</dd></div><div><dt>已走距离</dt><dd id="distance-readout">—</dd></div><div><dt>当前速度</dt><dd id="speed-readout">—</dd></div></dl>
-          <p>这里显示测试页面收到的位置，适合用另一台设备复现同一条路线。</p>
+          <dl class="readings"><div><dt>纬度</dt><dd id="lat-readout">—</dd></div><div><dt>经度</dt><dd id="lon-readout">—</dd></div><div><dt>已走距离</dt><dd id="distance-readout">—</dd></div><div><dt>当前配速</dt><dd id="speed-readout">—</dd></div></dl>
+          <p>这里显示本页的模拟位置。点「连接手机」可在 Safari 实时查看相同读数。</p>
         </section>
       </aside>
     </div>
     <p id="notice" class="notice" role="status" aria-live="polite" hidden></p>
+    <dialog id="pair-dialog" aria-labelledby="pair-title">
+      <div class="share-form"><h2 id="pair-title">连接手机接收器</h2>
+      <p>用 iPhone 相机扫码，在 Safari 中打开。保持两端页面在前台，手机会显示电脑发来的测试位置。</p>
+      <img id="pair-qr" width="200" height="200" alt="手机接收器配对二维码" hidden>
+      <label id="pair-label" hidden>手机接收链接<input id="pair-url" type="url" readonly></label>
+      <p id="pair-status" role="status"></p>
+      <div class="transport"><button id="pair-retry" type="button" hidden>重新连接</button><button id="pair-end" type="button">断开连接</button><button id="pair-close" type="button">关闭窗口</button></div></div>
+    </dialog>
     <dialog id="share-dialog" aria-labelledby="share-title">
       <form method="dialog" class="share-form">
         <h2 id="share-title">分享测试路线</h2><p>把链接发到 iPhone，在 Safari 打开。链接包含当前路线的坐标。</p>

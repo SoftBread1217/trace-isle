@@ -69,12 +69,32 @@ export function setRouteSpeed(route, speed) {
   return { ...route, speed, seconds: route.metres / (speed / 3.6) };
 }
 
-export function advancePlayback(route, current, seconds) {
+export function parsePace(text) {
+  const match = /^(\d{1,2})[:：]([0-5]\d)$/.exec(text.trim());
+  const seconds = match && Number(match[1]) * 60 + Number(match[2]);
+  if (!seconds || seconds < 30 || seconds > 3600) throw new Error('配速请填 0:30 到 60:00，例如 5:30。');
+  return 3600 / seconds;
+}
+
+export function formatPace(speed) {
+  const seconds = Math.round(3600 / speed);
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+}
+
+export function tripSample(route, metres) {
+  if (!route.metres || metres <= route.metres) return sampleAtDistance(route, metres);
+  const cycle = isClosedRoute(route.points) ? route.metres : route.metres * 2;
+  const phase = metres % cycle;
+  const along = phase > route.metres ? cycle - phase : phase;
+  return { point: sampleAtDistance(route, along).point, metres };
+}
+
+export function advancePlayback(route, current, seconds, target = route.metres) {
   const speed = route.speed / 3.6;
-  const remaining = Math.max(0, route.metres - current.metres);
+  const remaining = Math.max(0, target - current.metres);
   const delta = Math.max(0, seconds);
   if (delta >= remaining / speed) {
-    return { metres: route.metres, elapsed: current.elapsed + remaining / speed };
+    return { metres: target, elapsed: current.elapsed + remaining / speed };
   }
   return { metres: current.metres + delta * speed, elapsed: current.elapsed + delta };
 }
@@ -107,11 +127,17 @@ export function sampleAt(route, seconds) {
   return sample && { ...sample, elapsed };
 }
 
-export function encodeRoute({ points, speed }) {
+function validTarget(metres) {
+  return Number.isSafeInteger(metres) && metres >= 1 && metres <= 1_000_000;
+}
+
+export function encodeRoute({ points, speed, target }) {
   validateSpeed(speed);
   const pins = normalizePoints(points).map(point => point.map(value => Math.round(value * 1e6)));
   if (!pins.length) throw new Error('至少需要一个坐标点。');
-  const code = btoa(JSON.stringify([1, speed, pins])).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  if (target != null && !validTarget(target)) throw new Error('目标距离超出范围。');
+  const data = target == null ? [1, speed, pins] : [2, speed, pins, target];
+  const code = btoa(JSON.stringify(data)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   if (code.length > 7800) throw new Error('路线太长，请改用 GPX 文件分享。');
   return code;
 }
@@ -120,14 +146,16 @@ export function decodeRoute(code) {
   try {
     if (!/^[\w-]{1,7800}$/.test(code)) throw new Error();
     const data = JSON.parse(atob(code.replace(/-/g, '+').replace(/_/g, '/')));
-    if (!Array.isArray(data) || data.length !== 3 || data[0] !== 1 || !Array.isArray(data[2])) {
+    if (!Array.isArray(data) || !Array.isArray(data[2]) ||
+        !(data[0] === 1 && data.length === 3 || data[0] === 2 && data.length === 4 && validTarget(data[3]))) {
       throw new Error();
     }
     const [, speed, pins] = data;
     validateSpeed(speed);
     if (!pins.length || pins.length > MAX_POINTS || pins.some(point =>
       !Array.isArray(point) || !point.every(Number.isSafeInteger))) throw new Error();
-    return { points: normalizePoints(pins.map(point => point.map(value => value / 1e6))), speed };
+    return { points: normalizePoints(pins.map(point => point.map(value => value / 1e6))), speed,
+      ...(data[0] === 2 ? { target: data[3] } : {}) };
   } catch {
     throw new Error('路线链接无效，请重新分享或导入 GPX。');
   }
