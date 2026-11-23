@@ -3,6 +3,7 @@ import asyncio
 import hashlib
 import math
 import os
+import re
 import sys
 import webbrowser
 from contextlib import AsyncExitStack, asynccontextmanager, suppress
@@ -157,7 +158,10 @@ ASSETS = {"index.html", "app.js", "route.js", "pair.js", "presets.js", "usb.js",
 
 async def assets(request):
     name = request.path_params.get("path") or "index.html"
-    if request.headers.get("host") != ORIGIN.split("//")[1] or name not in ASSETS:
+    dataset = re.fullmatch(r"campus-data/(?:schools|\d{1,2}_\d{1,2})\.json", name)
+    if request.headers.get("host") != ORIGIN.split("//")[1] or (name not in ASSETS and not dataset):
+        return Response(status_code=404)
+    if not (ROOT / name).is_file():
         return Response(status_code=404)
     return FileResponse(ROOT / name, headers={"Cache-Control": "no-store", "X-Frame-Options": "DENY"})
 

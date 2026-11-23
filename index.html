@@ -8,11 +8,11 @@
   <title>迹屿 · Trace Isle</title>
   <link rel="icon" href="./isle.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./vendor/leaflet.css">
-  <link rel="stylesheet" href="./style.css?v=4">
+  <link rel="stylesheet" href="./style.css?v=6">
   <script defer src="./vendor/leaflet.js"></script>
   <script defer src="./vendor/peerjs.min.js"></script>
   <script defer src="./vendor/qrcode.js"></script>
-  <script type="module" src="./app.js?v=5"></script>
+  <script type="module" src="./app.js?v=6"></script>
 </head>
 <body>
   <header class="top"><div class="wrap top-inner">
@@ -21,8 +21,21 @@
   </div></header>
   <main class="wrap">
     <section class="intro" aria-labelledby="title">
-      <div><h1 id="title">轨迹实验室</h1><p>在地图上画一条路线，看看位置如何沿时间变化。</p></div>
+      <div><h1 id="title">找学校操场</h1><p>选好校区和操场，预览一圈路线。</p></div>
       <div class="intro-actions"><button id="connect" type="button">配对网页接收器</button><span id="device-state" role="status">网页未配对</span><button id="share" type="button" disabled>分享测试链接</button></div>
+    </section>
+    <section class="panel finder" aria-label="查找学校操场">
+      <form id="school-search"><label for="school-query">学校或校区</label>
+        <div class="school-input"><input id="school-query" type="search" placeholder="输入学校名、简称或校区，例如「清华」" maxlength="80" required><button class="primary">搜索</button></div></form>
+      <div id="school-results" class="choices"></div>
+      <div class="finder-actions"><button type="button" id="choose-demo">体验陵水体育场</button><button type="button" id="choose-manual">在地图上指定操场</button></div>
+      <p id="school-status" role="status" class="helper"></p>
+      <div id="field-picker" hidden>
+        <h2 id="campus-title"></h2><div class="choices" id="field-results"></div>
+        <div id="campus-map" aria-label="操场选择与路线预览地图"></div>
+        <div id="field-preview" hidden><strong id="field-length"></strong><p id="field-guide" class="helper"></p>
+        <div class="finder-actions"><button id="use-field" type="button" class="primary">使用这条跑道</button><button id="edit-template" type="button">调整为估算模板</button></div></div>
+      </div>
     </section>
     <section class="panel" style="padding:1rem;margin-bottom:1rem" aria-labelledby="usb-title">
       <h2 id="usb-title">更改 iPhone 系统定位</h2>
@@ -35,12 +48,12 @@
     </section>
     <div class="workspace">
       <section class="panel route-panel" aria-labelledby="route-title">
-        <div class="panel-head"><div><h2 id="route-title">路线</h2><p id="route-name">示例路线 · 悉尼海港</p></div></div>
+        <div class="panel-head"><div><h2 id="route-title">路线</h2><p id="route-name"></p></div><button id="share-field" hidden>分享这个操场</button></div>
         <div class="toolbar presets" aria-label="路线预设">
           <button id="stadium" class="primary" type="button">陵水体育场预设</button>
           <button id="example" type="button">悉尼海港示例</button>
         </div>
-        <div class="toolbar" aria-label="路线编辑">
+        <details class="custom-route"><summary>自定义路线与固定点</summary><div class="toolbar" aria-label="路线编辑">
           <button id="draw" type="button" aria-pressed="false">地图画轨迹</button>
           <button id="close-route" type="button" disabled>闭合路线</button>
           <button id="pick-fixed" type="button" aria-pressed="false">地图选固定点</button>
@@ -49,7 +62,7 @@
           <button id="import" type="button">导入 GPX</button><input id="gpx" type="file" accept=".gpx,application/gpx+xml,application/xml,text/xml" hidden>
           <button id="export" type="button">导出 GPX</button>
         </div>
-        <div class="map-box"><div id="map" aria-label="可缩放的路线地图"></div><div id="map-hint" class="map-hint" hidden>点击地图添加轨迹点</div></div>
+        </details><div class="map-box"><div id="map" aria-label="可缩放的路线地图"></div><div id="map-hint" class="map-hint" hidden>点击地图添加轨迹点</div></div>
         <div class="map-footer"><label><input id="basemap" type="checkbox" checked> 在线底图</label><span id="map-status" role="status"></span><span id="point-count">0 个点</span></div>
         <details class="coordinate-entry"><summary>定位设置 · 输入经纬度</summary>
           <form id="coordinate-form" class="coordinate-form">
@@ -102,7 +115,7 @@
         <p id="share-status" role="status"></p>
       </form>
     </dialog>
-    <footer><span>迹屿 · Trace Isle</span><span>用于路线回放与测试页面调试</span></footer>
+    <footer><span>迹屿 · Trace Isle</span><span>校园与场地数据 © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap 贡献者</a> · <a href="https://github.com/SoftBread1217/trace-isle/tree/main/campus-data#readme">数据说明</a></span></footer>
   </main>
   <noscript>请启用 JavaScript 以使用迹屿。</noscript>
 </body>

@@ -131,3 +131,26 @@ noscript { display: block; text-align: center; padding: 1rem; }
   .coordinate-actions { grid-column: 1 / -1; }
   .coordinate-actions button { flex: 1; }
 }
+
+.finder { padding:1.2rem; margin-bottom:1rem; }
+.finder form label { font-weight:650; }
+.school-input,.finder-actions,.choices { display:flex; gap:.6rem; flex-wrap:wrap; }
+.school-input { flex-wrap:nowrap; margin:.4rem 0 .8rem; }
+.school-input input { width:100%; min-width:0; border:1px solid var(--line); border-radius:.6rem; padding:.55rem .7rem; }
+.school-input button { flex-shrink:0; min-width:5rem; }
+.choices { margin:.7rem 0; max-height:17rem; overflow:auto; }
+.choices:empty { display:none; }
+.choices button { display:flex; gap:.55rem; align-items:center; text-align:left; font-weight:600; }
+.choices small { display:block; font-weight:400; color:var(--muted); }
+.choices canvas { width:48px; height:36px; }
+#field-picker { border-top:1px solid var(--line); margin-top:1rem; padding-top:1rem; }
+#campus-map { height:clamp(19rem,43vh,30rem); background:#edf3eb; border-radius:.6rem; isolation:isolate; }
+#field-preview { padding-top:.75rem; }
+#field-preview .finder-actions { margin-top:.65rem; }
+.oval-handle { border:2px solid white; box-shadow:0 0 0 1px #0b493d; border-radius:50%; background:#146953; cursor:grab; }
+.oval-center { background:white; border:3px solid #146953; }
+.custom-route summary { cursor:pointer; padding:.6rem 1.15rem; font-weight:600; }
+.custom-route[open] .toolbar { margin-top:.4rem; }
+@media(max-width:590px){.finder { padding:.85rem; } .choices button { flex:1 1 10rem; }}
+
+.field-number.leaflet-tooltip { color:white; background:transparent; border:0; box-shadow:none; font-weight:bold; padding:0; }

@@ -96,4 +96,5 @@ export function setupUSB(readPosition, routeLink) {
   window.addEventListener('pagehide', () => socket?.close());
   status('USB 未连接');
   controls();
+  return () => { if (streaming) $('usb-clear').click(); };
 }

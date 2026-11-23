@@ -90,3 +90,26 @@ test('Lingshui stadium is a playable closed demo route', () => {
   assert.notDeepEqual(sampleAtDistance(route, route.metres / 2).point, points[0]);
   assert.deepEqual(decodeRoute(encodeRoute(route)).points[0], points[0]);
 });
+
+import { stadiumLoop, fitOval, searchSchools, nearbyVenues, ovalPoint } from '../presets.js';
+
+test('stadium template has two straights and closed turns, at any angle', () => {
+  for(const bearing of [0,32,91,155]) {
+    const model={center:[30,120],length:160,width:60,bearing};
+    const points=stadiumLoop(model);
+    assert.deepEqual(points.at(-1),points[0]);
+    assert.ok(Math.abs(makeRoute(points,10).metres-(200+60*Math.PI))<1);
+    const outline=[[80,30],[80,-30],[-80,-30],[-80,30],[80,30]].map(([u,v])=>ovalPoint(model,u,v));
+    const fit=fitOval(model.center,outline);
+    assert.ok(Math.abs(fit.bearing-bearing)<=2);
+    assert.ok(fit.length>fit.width);
+  }
+});
+test('search matches aliases and separate campuses; nearby venues deduplicate lanes',()=>{
+  const rows=[['浙江大学紫金港校区','杭州','',30,120,[]],['浙江大学玉泉校区','杭州','',30,120,[]]];
+  assert.equal(searchSchools(rows,'浙大').length,2);
+  assert.deepEqual(searchSchools(rows,'浙大 紫金港'),[rows[0]]);
+  const venues=[[1,'场馆',30,120,0,[]],[2,'田径场',30.0001,120,1,[0,0,10,10,0,0]],[3,'别处',31,120,0,[]]];
+  assert.deepEqual(nearbyVenues(venues,rows[0]).map(v=>v.id),[2]);
+  assert.deepEqual(nearbyVenues([] ,rows[0]),[]);
+});

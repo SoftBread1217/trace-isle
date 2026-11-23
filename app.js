@@ -1,8 +1,8 @@
 import { advancePlayback, canCloseRoute, closeRoute, decodeRoute, encodeRoute, isClosedRoute, makeRoute,
   MAX_POINTS, normalizePoints, tripSample, parsePace, formatPace, setRouteSpeed, wrapLongitude } from './route.js?v=4';
 import { setupPairing } from './pair.js?v=5';
-import { setupUSB } from './usb.js?v=5';
-import { LINGSHUI_STADIUM, SYDNEY_HARBOUR } from './presets.js?v=3';
+import { setupUSB } from './usb.js?v=6';
+import { LINGSHUI_STADIUM, SYDNEY_HARBOUR, setupCampusFinder } from './presets.js?v=6';
 
 const $ = id => document.getElementById(id);
 const L = window.L;
@@ -19,6 +19,7 @@ let route = makeRoute([], 10);
 let target = null;
 const tripLength = () => route.metres ? target ?? route.metres : 0;
 let title = '';
+let fieldName = '';
 let drawing = false;
 let pickingFixed = false;
 let fixedPoint = null;
@@ -81,6 +82,8 @@ function paintSample() {
 
 function syncControls() {
   const count = route.points.length;
+  $('share').textContent = fieldName && !fixedPoint ? '分享这个操场' : '分享测试链接';
+  $('share-field').hidden = !fieldName || Boolean(fixedPoint) || drawing;
   $('state').textContent = ({ ready: '就绪', playing: '播放中', paused: '已暂停', done: '已结束', fixed: '固定点已发送' })[mode];
   if (!count) $('state').textContent = '等待路线';
   if (fixedPoint) {
@@ -129,6 +132,7 @@ function stopFrame() {
 
 function changeRoute(points, name, { speed = route.speed, fit = false } = {}) {
   const next = makeRoute(points, speed);
+  fieldName = '';
   importRevision++;
   stopFrame();
   fixedPoint = null;
@@ -400,10 +404,16 @@ $('export').onclick = () => {
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 20_000);
 };
+function routeFragment() {
+  const params = new URLSearchParams();
+  params.set('route', encodeRoute(fixedPoint ? { points: [fixedPoint], speed: route.speed } : { ...route, target }));
+  if (!fixedPoint && fieldName) params.set('field', fieldName);
+  return params.toString();
+}
 $('share').onclick = () => {
   try {
-    const url = new URL(location.href);
-    url.hash = `route=${encodeRoute(fixedPoint ? { points: [fixedPoint], speed: route.speed } : { ...route, target })}`;
+    const url = new URL('https://softbread1217.github.io/trace-isle/?v=6');
+    url.hash = routeFragment();
     $('share-url').value = url.href;
     $('share-status').textContent = '';
     $('share-dialog').showModal();
@@ -419,17 +429,24 @@ $('copy').onclick = async () => {
     $('share-status').textContent = '链接已选中，可以手动复制。';
   }
 };
+$('share-field').onclick = () => $('share').click();
 document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
 
 setBasemap();
-loadPreset(SYDNEY_HARBOUR);
+changeRoute([], '');
+map.setView(LINGSHUI_STADIUM.points[0], 16);
 if (location.hash.startsWith('#route=')) {
   try {
-    const shared = decodeRoute(location.hash.slice(7));
+    const params = new URLSearchParams(location.hash.slice(1));
+    const shared = decodeRoute(params.get('route'));
     const { points, speed } = shared;
     target = shared.target ?? null;
     $('target').value = target == null ? '' : String(target / 1000);
-    changeRoute(points, '分享的测试路线', { speed, fit: true });
+    const field = (params.get('field') || '').slice(0,160);
+    changeRoute(points, field || '分享的测试路线', { speed, fit: true });
+    fieldName = field;
+    syncControls();
+    if (field) $('school-status').textContent = '已载入分享的操场：' + field;
   } catch (error) { notify(error.message, true); }
 }
 setupPairing(() => ({
@@ -437,5 +454,10 @@ setupPairing(() => ({
   distance: $('distance-readout').textContent, pace: $('speed-readout').textContent,
   mode: $('state').textContent
 }));
-setupUSB(() => fixedPoint ?? tripSample(route, motion.metres)?.point,
-  () => 'route=' + encodeRoute(fixedPoint ? { points: [fixedPoint], speed: route.speed } : { ...route, target }));
+const releaseOutput = setupUSB(() => fixedPoint ?? tripSample(route, motion.metres)?.point, routeFragment);
+setupCampusFinder({L, measure: points => makeRoute(points, 10).metres, use(points, name) {
+  releaseOutput?.();
+  loadPreset({points, name});
+  fieldName = name;
+  syncControls();
+}});
