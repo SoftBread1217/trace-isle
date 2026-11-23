@@ -8,9 +8,9 @@
   <title>迹屿 · Trace Isle</title>
   <link rel="icon" href="./isle.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./vendor/leaflet.css">
-  <link rel="stylesheet" href="./style.css?v=2">
+  <link rel="stylesheet" href="./style.css?v=3">
   <script defer src="./vendor/leaflet.js"></script>
-  <script type="module" src="./app.js?v=2"></script>
+  <script type="module" src="./app.js?v=3"></script>
 </head>
 <body>
   <header class="top"><div class="wrap top-inner">
@@ -24,16 +24,21 @@
     </section>
     <div class="workspace">
       <section class="panel route-panel" aria-labelledby="route-title">
-        <div class="panel-head"><div><h2 id="route-title">路线</h2><p id="route-name">示例路线 · 悉尼海港</p></div><button id="example" type="button">载入示例</button></div>
+        <div class="panel-head"><div><h2 id="route-title">路线</h2><p id="route-name">示例路线 · 悉尼海港</p></div></div>
+        <div class="toolbar presets" aria-label="路线预设">
+          <button id="stadium" class="primary" type="button">陵水体育场预设</button>
+          <button id="example" type="button">悉尼海港示例</button>
+        </div>
         <div class="toolbar" aria-label="路线编辑">
-          <button id="draw" type="button" aria-pressed="false">地图加点</button>
+          <button id="draw" type="button" aria-pressed="false">地图画轨迹</button>
+          <button id="close-route" type="button" disabled>闭合路线</button>
           <button id="pick-fixed" type="button" aria-pressed="false">地图选固定点</button>
           <button id="undo" type="button">撤销</button>
           <button id="clear" type="button">清空</button>
           <button id="import" type="button">导入 GPX</button><input id="gpx" type="file" accept=".gpx,application/gpx+xml,application/xml,text/xml" hidden>
           <button id="export" type="button">导出 GPX</button>
         </div>
-        <div class="map-box"><div id="map" aria-label="可缩放的路线地图"></div><div id="map-hint" class="map-hint" hidden>点击地图添加坐标点</div></div>
+        <div class="map-box"><div id="map" aria-label="可缩放的路线地图"></div><div id="map-hint" class="map-hint" hidden>点击地图添加轨迹点</div></div>
         <div class="map-footer"><label><input id="basemap" type="checkbox" checked> 在线底图</label><span id="map-status" role="status"></span><span id="point-count">0 个点</span></div>
         <details class="coordinate-entry"><summary>定位设置 · 输入经纬度</summary>
           <form id="coordinate-form" class="coordinate-form">

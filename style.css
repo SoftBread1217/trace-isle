@@ -52,6 +52,7 @@ a { color: inherit; }
 .panel-head p { color: var(--muted); font-size: .93rem; margin-top: .2rem; overflow-wrap: anywhere; }
 .route-panel .panel-head > button { flex: 0 0 auto; }
 .toolbar { display: flex; flex-wrap: wrap; gap: .45rem; padding: 0 1.15rem .85rem; }
+.toolbar.presets { padding-bottom: .55rem; }
 .map-box { position: relative; isolation: isolate; }
 #map { height: clamp(23rem, 43vw, 34rem); background: #e4eee0; background-image: linear-gradient(90deg, #d7e4d4 1px, transparent 1px), linear-gradient(#d7e4d4 1px, transparent 1px); background-size: 28px 28px; }
 #map.drawing { cursor: crosshair; }

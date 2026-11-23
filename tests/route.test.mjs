@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { advancePlayback, decodeRoute, encodeRoute, makeRoute, normalizePoints, sampleAt, sampleAtDistance, setRouteSpeed } from '../route.js';
+import { advancePlayback, closeRoute, decodeRoute, encodeRoute, makeRoute, normalizePoints, sampleAt, sampleAtDistance, setRouteSpeed } from '../route.js';
+import { LINGSHUI_STADIUM } from '../presets.js';
 
 test('rejects coordinates outside the supported ranges and drops neighboring duplicates', () => {
   assert.deepEqual(normalizePoints([[12, 34], [12, 34], [13, 34]]), [[12, 34], [13, 34]]);
@@ -46,4 +47,22 @@ test('elapsed time stops exactly at the route end, including a stationary point'
   assert.deepEqual(final, { metres: route.metres, elapsed: 23 });
   const stationary = makeRoute([[12, 34]], 8);
   assert.deepEqual(advancePlayback(stationary, { metres: 0, elapsed: 0 }, 10), { metres: 0, elapsed: 0 });
+});
+
+test('closing a route adds the return leg once and requires three distinct points', () => {
+  const open = [[18.4, 110.01], [18.4003, 110.01], [18.4003, 110.011]];
+  const closed = closeRoute(open);
+  assert.deepEqual(closed, [...open, open[0]]);
+  assert.deepEqual(closeRoute(closed), closed);
+  assert.ok(makeRoute(closed, 5).metres > makeRoute(open, 5).metres);
+  assert.throws(() => closeRoute([open[0], open[1], open[0]]), /三个不同/);
+});
+
+test('Lingshui stadium is a playable closed demo route', () => {
+  const points = LINGSHUI_STADIUM.points;
+  assert.deepEqual(points[0], points.at(-1));
+  const route = makeRoute(points, 5);
+  assert.ok(route.metres > 300 && route.metres < 500);
+  assert.notDeepEqual(sampleAtDistance(route, route.metres / 2).point, points[0]);
+  assert.deepEqual(decodeRoute(encodeRoute(route)).points[0], points[0]);
 });

@@ -1,13 +1,10 @@
-import { advancePlayback, decodeRoute, encodeRoute, makeRoute, MAX_POINTS, normalizePoints,
-  sampleAtDistance, setRouteSpeed, wrapLongitude } from './route.js?v=2';
+import { advancePlayback, canCloseRoute, closeRoute, decodeRoute, encodeRoute, isClosedRoute, makeRoute,
+  MAX_POINTS, normalizePoints, sampleAtDistance, setRouteSpeed, wrapLongitude } from './route.js?v=3';
+import { LINGSHUI_STADIUM, SYDNEY_HARBOUR } from './presets.js?v=3';
 
 const $ = id => document.getElementById(id);
 const L = window.L;
-const example = [
-  [-33.85662, 151.21527], [-33.85729, 151.21498], [-33.85803, 151.21443],
-  [-33.85861, 151.21349], [-33.85948, 151.21323], [-33.86020, 151.21204],
-];
-const map = L.map('map', { minZoom: 2, maxZoom: 19, zoomControl: true }).setView(example[0], 16);
+const map = L.map('map', { minZoom: 2, maxZoom: 19, zoomControl: true }).setView(SYDNEY_HARBOUR.points[0], 16);
 const routeLine = L.polyline([], { color: '#216851', weight: 4, opacity: .95, interactive: false }).addTo(map);
 const cursor = L.circleMarker([0, 0], { radius: 8, color: '#fff', weight: 3, fillColor: '#0c4939', fillOpacity: 1, interactive: false });
 const pins = L.layerGroup().addTo(map);
@@ -85,28 +82,33 @@ function syncControls() {
   if (fixedPoint) {
     $('state').textContent = '固定定位';
     $('play').textContent = '固定点已应用';
+  } else if (drawing) {
+    $('state').textContent = '画线中';
+    $('play').textContent = count < 2 ? '轨迹至少需要两个点' : '先完成画线';
   } else if (mode === 'playing') $('play').textContent = '暂停';
   else if (count === 1) $('play').textContent = '发送固定点';
   else if (mode === 'paused') $('play').textContent = '继续';
   else if (mode === 'done') $('play').textContent = '重新播放';
-  else $('play').textContent = '播放';
-  for (const id of ['share', 'export']) $(id).disabled = !(count || fixedPoint);
+  else $('play').textContent = '播放轨迹';
+  for (const id of ['share', 'export']) $(id).disabled = !(count || fixedPoint) || drawing;
   for (const id of ['undo', 'clear']) $(id).disabled = !count;
   for (const id of ['play', 'reset']) {
     $(id).hidden = Boolean(fixedPoint);
-    $(id).disabled = !count;
+    $(id).disabled = !count || drawing;
   }
   for (const id of ['speed', 'speed-slider', 'rate']) $(id).disabled = Boolean(fixedPoint);
   $('return-to-route').hidden = !fixedPoint;
-  $('progress').disabled = !route.metres || Boolean(fixedPoint);
+  $('progress').disabled = !route.metres || Boolean(fixedPoint) || drawing;
   $('draw').setAttribute('aria-pressed', String(drawing));
-  $('draw').textContent = drawing ? '结束加点' : '地图加点';
+  $('draw').textContent = drawing ? '完成画线' : '地图画轨迹';
+  $('close-route').disabled = !drawing || !canCloseRoute(route.points);
   $('pick-fixed').setAttribute('aria-pressed', String(pickingFixed));
   $('map-hint').hidden = !drawing && !pickingFixed;
-  $('map-hint').textContent = pickingFixed ? '点地图应用固定位置' : '点击地图添加坐标点';
+  $('map-hint').textContent = pickingFixed ? '点地图应用固定位置'
+    : count < 2 ? '依次点击地图，选至少两个不同的点' : '继续加点，或完成／闭合路线';
   $('map').classList.toggle('drawing', drawing || pickingFixed);
   $('route-name').textContent = title || '用地图或经纬度添加坐标';
-  $('point-count').textContent = `${count} 个点`;
+  $('point-count').textContent = `${count} 个点${isClosedRoute(route.points) ? ' · 已闭合' : ''}`;
   $('total-distance').textContent = fixedPoint ? '0 m' : count ? formatDistance(route.metres) : '—';
   for (const button of document.querySelectorAll('[data-speed-step]')) {
     button.disabled = Boolean(fixedPoint) || (Number(button.dataset.speedStep) < 0 ? route.speed <= 1 : route.speed >= 120);
@@ -176,7 +178,9 @@ function pause() {
 }
 
 function appendPoint(point) {
-  changeRoute([...route.points, point], '手绘路线');
+  const points = isClosedRoute(route.points) ? route.points.slice(0, -1) : route.points;
+  if (points.length === 0) drawing = true;
+  changeRoute([...points, point], '手绘路线');
   notify('');
 }
 
@@ -232,7 +236,7 @@ function readGPX(text) {
 
 $('play').onclick = () => {
   if (mode === 'playing') return pause();
-  if (!route.points.length || fixedPoint) return;
+  if (!route.points.length || fixedPoint || drawing) return;
   drawing = false;
   pickingFixed = false;
   if (!route.metres) {
@@ -290,10 +294,43 @@ $('rate').onchange = () => {
   playbackRate = Number($('rate').value);
   paintSample();
 };
-$('example').onclick = () => { drawing = false; changeRoute(example, '示例路线 · 悉尼海港', { fit: true }); notify(''); };
-$('draw').onclick = () => { drawing = !drawing; pickingFixed = false; if (drawing) pause(); syncControls(); };
-$('pick-fixed').onclick = () => { pickingFixed = !pickingFixed; drawing = false; syncControls(); };
-$('undo').onclick = () => { changeRoute(route.points.slice(0, -1), title); notify(''); };
+function loadPreset(preset) {
+  drawing = false;
+  changeRoute(preset.points, preset.name, { fit: true });
+  notify('');
+}
+
+$('example').onclick = () => loadPreset(SYDNEY_HARBOUR);
+$('stadium').onclick = () => loadPreset(LINGSHUI_STADIUM);
+$('draw').onclick = () => {
+  if (drawing && route.points.length === 1) {
+    notify('再在地图上点一个不同的位置，就可以完成轨迹。', true);
+    return;
+  }
+  drawing = !drawing;
+  pickingFixed = false;
+  if (drawing) {
+    fixedPoint = null;
+    pause();
+    paintSample();
+  }
+  syncControls();
+  notify('');
+};
+$('close-route').onclick = () => {
+  try {
+    const points = closeRoute(route.points);
+    drawing = false;
+    changeRoute(points, title);
+    notify('已把轨迹终点连接回起点。');
+  } catch (error) { notify(error.message, true); }
+};
+$('pick-fixed').onclick = () => { pickingFixed = !pickingFixed; drawing = false; if (pickingFixed) pause(); syncControls(); };
+$('undo').onclick = () => {
+  if (route.points.length === 2) drawing = true;
+  changeRoute(route.points.slice(0, -1), title);
+  notify('');
+};
 $('clear').onclick = () => { changeRoute([], ''); notify(''); };
 $('basemap').onchange = setBasemap;
 map.on('moveend', paintSample);
@@ -366,7 +403,7 @@ $('copy').onclick = async () => {
 document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
 
 setBasemap();
-changeRoute(example, '示例路线 · 悉尼海港', { fit: true });
+loadPreset(SYDNEY_HARBOUR);
 if (location.hash.startsWith('#route=')) {
   try {
     const { points, speed } = decodeRoute(location.hash.slice(7));

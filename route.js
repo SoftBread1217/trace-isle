@@ -19,6 +19,27 @@ export function normalizePoints(points) {
   return normalized;
 }
 
+export function isClosedRoute(points) {
+  const first = points[0];
+  const last = points.at(-1);
+  return points.length >= 4 && first[0] === last[0] && first[1] === last[1];
+}
+
+export function canCloseRoute(points) {
+  return points.length < MAX_POINTS && !isClosedRoute(points) &&
+    new Set(points.map(point => `${point[0]},${point[1]}`)).size >= 3;
+}
+
+export function closeRoute(points) {
+  const normalized = normalizePoints(points);
+  if (new Set(normalized.map(point => `${point[0]},${point[1]}`)).size < 3) {
+    throw new Error('闭合路线至少需要三个不同的点。');
+  }
+  if (isClosedRoute(normalized)) return normalized;
+  if (normalized.length === MAX_POINTS) throw new Error('路线已达点数上限，撤销一个点后再闭合。');
+  return [...normalized, [...normalized[0]]];
+}
+
 function validateSpeed(speed) {
   if (!Number.isFinite(speed) || speed < 1 || speed > 120) {
     throw new Error('速度应为 1–120 公里/小时。');
