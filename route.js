@@ -138,7 +138,7 @@ export function encodeRoute({ points, speed, target }) {
   if (target != null && !validTarget(target)) throw new Error('目标距离超出范围。');
   const data = target == null ? [1, speed, pins] : [2, speed, pins, target];
   const code = btoa(JSON.stringify(data)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  if (code.length > 7800) throw new Error('路线太长，请改用 GPX 文件分享。');
+  if (code.length > 7800) throw new Error('路线太长，请在本机控制台导入 GPX 文件。');
   return code;
 }
 
@@ -157,6 +157,6 @@ export function decodeRoute(code) {
     return { points: normalizePoints(pins.map(point => point.map(value => value / 1e6))), speed,
       ...(data[0] === 2 ? { target: data[3] } : {}) };
   } catch {
-    throw new Error('路线链接无效，请重新分享或导入 GPX。');
+    throw new Error('路线链接无效，请重新打开本机控制台或导入 GPX。');
   }
 }

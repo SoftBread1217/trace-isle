@@ -1,4 +1,4 @@
-import { isClosedRoute, wrapLongitude } from './route.js?v=4';
+import { isClosedRoute, wrapLongitude } from './route.js?v=14';
 
 // Mile End campus, from the footpath east of the Clock Tower to Library Square.
 export const QUEEN_MARY_MILE_END = {
@@ -335,7 +335,7 @@ export function setupCampusFinder({L, measure, use, showRoute}) {
       });
       if(fields.length>1) map.fitBounds(L.latLngBounds(fields.map(f=>f.center)),{padding:[30,30],maxZoom:17,animate:false});
       if(fields.length===1) select(fields[0]);
-      else if(fields.length) status('请选择要预览的校内操场。');
+      else if(fields.length) status('请选择要使用的校内操场。');
       else status((row[6]?.fieldIds ? '这个校区的边界内暂无已收录的操场。' : '地图缺少可核实的校区边界。')+'可点「在地图上指定操场」手动选择。');
     } catch { if(current===revision)status('场地资料加载失败。可以重试或在地图上指定操场。'); }
   }

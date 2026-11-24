@@ -2,7 +2,7 @@
 
 本目录为 OpenStreetMap 公开数据的衍生数据库，© [OpenStreetMap 贡献者](https://www.openstreetmap.org/copyright)，遵循 [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/)。本目录的 JSON 文件可独立下载和复用。城市邻近提示使用 [Natural Earth 1:10m Populated Places](https://www.naturalearthdata.com/downloads/10m-cultural-vectors/10m-populated-places/) 公有领域数据。地名与场馆记录来自地图贡献者。
 
-2026-11-23 快照覆盖北纬 18–54 度、东经 73–135 度检索框。学校索引收录带中文或汉字名称的大学地图条目，一个学校可以有多个校区条目；覆盖范围不等于学校或行政区边界。自动推荐会核对场地完整外轮廓和初始预览路线是否都在所选校区的地图边界内。圈长根据轨迹几何计算，场馆边界只用于生成可调整的估算模板。
+2026-11-23 快照覆盖北纬 18–54 度、东经 73–135 度检索框。学校索引收录带中文或汉字名称的大学地图条目，一个学校可以有多个校区条目；覆盖范围不等于学校或行政区边界。自动推荐会核对场地完整外轮廓和初始模拟路线是否都在所选校区的地图边界内。圈长根据轨迹几何计算，场馆边界只用于生成可调整的估算模板。
 
 ## 数据生成
 

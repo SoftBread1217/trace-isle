@@ -1,8 +1,7 @@
 import { advancePlayback, canCloseRoute, closeRoute, decodeRoute, encodeRoute, isClosedRoute, makeRoute,
-  MAX_POINTS, normalizePoints, tripSample, parsePace, formatPace, setRouteSpeed, wrapLongitude } from './route.js?v=4';
-import { setupPairing } from './pair.js?v=5';
-import { setupUSB } from './usb.js?v=10';
-import { LINGSHUI_STADIUM, QUEEN_MARY_MILE_END, setupCampusFinder, sharedTrackPoints, streetBasemap } from './presets.js?v=13';
+  MAX_POINTS, normalizePoints, tripSample, parsePace, formatPace, setRouteSpeed, wrapLongitude } from './route.js?v=14';
+import { setupUSB } from './usb.js?v=14';
+import { LINGSHUI_STADIUM, QUEEN_MARY_MILE_END, setupCampusFinder, sharedTrackPoints, streetBasemap } from './presets.js?v=14';
 
 const $ = id => document.getElementById(id);
 const L = window.L;
@@ -22,7 +21,6 @@ let pickingFixed = false;
 let fixedPoint = null;
 const initialMotion = () => ({ metres: 0, elapsed: 0 });
 let motion = initialMotion();
-let playbackRate = Number($('rate').value);
 let mode = 'ready';
 let frame = null;
 let lastTick = null;
@@ -57,7 +55,7 @@ function visiblePoints(points) {
 }
 
 function paintSample() {
-  const sample = fixedPoint ? { point: fixedPoint, metres: 0 } : tripSample(route, motion.metres);
+  const sample = pickingFixed ? null : fixedPoint ? { point: fixedPoint, metres: 0 } : tripSample(route, motion.metres);
   if (sample) {
     const [lat, lon] = sample.point;
     $('lat-readout').textContent = lat.toFixed(6);
@@ -80,46 +78,47 @@ function paintSample() {
 function syncControls() {
   const count = route.points.length;
   $('player-title').closest('.player').toggleAttribute('data-playing', mode === 'playing');
-  $('share').ariaLabel = fieldName && !fixedPoint ? '分享这个操场' : '分享测试链接';
-  $('share-field').hidden = !fieldName || Boolean(fixedPoint) || drawing;
-  $('state').textContent = ({ ready: '就绪', playing: '播放中', paused: '已暂停', done: '已结束', fixed: '固定点已发送' })[mode];
-  if (!count) $('state').textContent = '等待路线';
-  if (fixedPoint) {
-    $('state').textContent = '固定定位';
-    $('play').textContent = '固定点已应用';
-  } else if (drawing) {
-    $('state').textContent = '画线中';
-    $('play').textContent = count < 2 ? '轨迹至少需要两个点' : '先完成画线';
-  } else if (mode === 'playing') $('play').textContent = '暂停';
-  else if (count === 1) $('play').textContent = '发送固定点';
-  else if (mode === 'paused') $('play').textContent = '继续';
-  else if (mode === 'done') $('play').textContent = '重新播放';
-  else $('play').textContent = '播放轨迹';
-  for (const id of ['share', 'export']) $(id).disabled = !(count || fixedPoint) || drawing;
-  for (const id of ['undo', 'clear']) $(id).disabled = !count;
-  for (const id of ['play', 'reset']) {
-    $(id).hidden = Boolean(fixedPoint);
-    $(id).disabled = !count || drawing;
+  const fixedMode = Boolean(fixedPoint || pickingFixed || (count === 1 && !drawing));
+  $('player-title').textContent = fixedMode ? '固定点定位' : '动态模拟';
+  $('route-mode').setAttribute('aria-pressed', String(!fixedMode));
+  $('pick-fixed').setAttribute('aria-pressed', String(fixedMode));
+  $('state').textContent = ({ ready: '就绪', playing: '模拟中', paused: '已暂停', done: '已完成', fixed: '固定定位中' })[mode];
+  if (drawing) $('state').textContent = '绘制中';
+  else if (pickingFixed) $('state').textContent = '请选择位置';
+  else if (!count && !fixedPoint) $('state').textContent = '等待路线';
+  $('play').textContent = fixedMode ? '应用固定点' : mode === 'playing' ? '暂停' : mode === 'paused' ? '继续模拟' : '开始模拟';
+  $('play').disabled = drawing || pickingFixed || (!count && !fixedPoint);
+  $('reset').disabled = !count && !fixedMode;
+  $('export').disabled = drawing || !(count || fixedPoint);
+  for (const id of ['undo','clear']) $(id).disabled = !count;
+  $('target').closest('.settings').hidden = fixedMode;
+  $('total-distance').closest('.stats').hidden = fixedMode;
+  $('distance-readout').parentElement.hidden = fixedMode;
+  $('speed-readout').parentElement.hidden = fixedMode;
+  if (fixedMode) {
+    routeLine.remove();
+    pins.remove();
+  } else {
+    routeLine.addTo(map);
+    pins.addTo(map);
   }
-  for (const id of ['pace', 'rate', 'target']) $(id).disabled = Boolean(fixedPoint) || !route.metres;
-  $('return-to-route').hidden = !fixedPoint;
-  $('progress').disabled = !route.metres || Boolean(fixedPoint) || drawing;
+  $('progress').hidden = fixedMode;
+  $('elapsed').parentElement.hidden = fixedMode;
+  $('trip-hint').hidden = fixedMode;
+  for (const id of ['pace','target']) $(id).disabled = fixedMode || !route.metres;
   $('draw').setAttribute('aria-pressed', String(drawing));
   $('draw').textContent = drawing ? '完成画线' : '地图画轨迹';
   $('close-route').disabled = !drawing || !canCloseRoute(route.points);
-  $('pick-fixed').setAttribute('aria-pressed', String(pickingFixed));
   $('map-hint').hidden = !drawing && !pickingFixed;
-  $('map-hint').textContent = pickingFixed ? '点地图应用固定位置'
+  $('map-hint').textContent = pickingFixed ? '点击地图选择固定位置'
     : count < 2 ? '依次点击地图，选至少两个不同的点' : '继续加点，或完成／闭合路线';
   $('map').classList.toggle('drawing', drawing || pickingFixed);
-  $('route-name').textContent = title || '用地图或经纬度添加坐标';
-  $('point-count').textContent = `${count} 个点${isClosedRoute(route.points) ? ' · 已闭合' : ''}`;
+  $('route-name').textContent = fixedMode ? '点击地图或输入经纬度选择位置' : title || '用地图或经纬度添加坐标';
+  $('point-count').textContent = fixedMode ? (pickingFixed ? '等待选点' : '1 个固定点') : `${count} 个点${isClosedRoute(route.points) ? ' · 已闭合' : ''}`;
   $('total-distance').textContent = fixedPoint ? '0 m' : count ? formatDistance(route.metres) : '—';
   const repeat = isClosedRoute(route.points) ? '超过一圈会继续绕圈' : '超过原长会沿原路折返';
-  $('trip-hint').textContent = route.metres && !fixedPoint ? `本次回放 ${formatDistance(tripLength())} · ${repeat}。` : '';
-  for (const button of document.querySelectorAll('[data-pace-step]')) {
-    button.disabled = $('pace').disabled || (Number(button.dataset.paceStep) < 0 ? route.speed >= 120 : route.speed <= 1);
-  }
+  $('trip-hint').textContent = route.metres && !fixedPoint ? `模拟距离 ${formatDistance(tripLength())} · ${repeat}。` : '';
+
 }
 
 function stopFrame() {
@@ -130,6 +129,7 @@ function stopFrame() {
 
 function changeRoute(points, name, { speed = route.speed, fit = false } = {}) {
   const next = makeRoute(points, speed);
+  usb.release();
   fieldName = '';
   importRevision++;
   stopFrame();
@@ -157,7 +157,7 @@ function advanceTo(now) {
   if (mode !== 'playing') return;
   if (lastTick === null) lastTick = now;
   if (now > lastTick) {
-    motion = advancePlayback(route, motion, (now - lastTick) / 1000 * playbackRate, tripLength());
+    motion = advancePlayback(route, motion, (now - lastTick) / 1000, tripLength());
     lastTick = now;
   }
   if (motion.metres >= tripLength()) {
@@ -195,6 +195,8 @@ function appendPoint(point) {
 function applyFixedPoint(point, { centre = true } = {}) {
   const [fixed] = normalizePoints([point]);
   pause();
+  usb.release();
+  mode = 'ready';
   importRevision++;
   fixedPoint = fixed;
   drawing = false;
@@ -204,7 +206,7 @@ function applyFixedPoint(point, { centre = true } = {}) {
   if (centre) map.setView(fixed, Math.max(map.getZoom(), 16));
   paintSample();
   syncControls();
-  notify('固定位置已发送到页面的定位接收器。');
+  notify('已选择坐标，点「应用固定点」同步到 iPhone。');
 }
 
 function setSpeed(speed) {
@@ -244,37 +246,35 @@ function readGPX(text) {
 $('play').onclick = () => {
   if (!$('field-picker').hidden) closePicker();
   if (mode === 'playing') return pause();
-  if (!route.points.length || fixedPoint || drawing) return;
-  drawing = false;
-  pickingFixed = false;
-  if (!route.metres) {
+  if ((!route.points.length && !fixedPoint) || drawing || pickingFixed || !usb.requireReady()) return;
+  if (fixedPoint || !route.metres) {
     mode = 'fixed';
-    paintSample();
   } else {
     if (motion.metres >= tripLength()) motion = initialMotion();
     mode = 'playing';
     lastTick = performance.now();
-    paintSample();
     frame = requestAnimationFrame(tick);
   }
-  syncControls();
-};
-$('reset').onclick = () => { stopFrame(); mode = 'ready'; motion = initialMotion(); paintSample(); syncControls(); };
-$('return-to-route').onclick = () => {
-  fixedPoint = null;
-  if (route.points.length === 1) map.setView(route.points[0], 17);
-  if (route.points.length > 1) map.fitBounds(routeLine.getBounds(), { padding: [35, 35], maxZoom: 17 });
+  usb.start();
   paintSample();
   syncControls();
-  notify('');
 };
-$('progress').oninput = () => {
+$('reset').onclick = () => {
   stopFrame();
-  const fraction = Number($('progress').value) / 1000;
-  motion = { metres: fraction * tripLength(), elapsed: fraction * tripLength() / (route.speed / 3.6) };
-  mode = fraction === 1 ? 'done' : 'paused';
-  paintSample();
-  syncControls();
+  if (fixedPoint || pickingFixed || route.points.length === 1) {
+    usb.release(); fixedPoint = null; pickingFixed = false;
+    if (route.points.length === 1) changeRoute([], '');
+  }
+  mode = 'ready'; motion = initialMotion();
+  paintSample(); syncControls(); notify('');
+};
+$('route-mode').onclick = () => {
+  if (!fixedPoint && !pickingFixed && route.points.length !== 1) return;
+  usb.release();
+  fixedPoint = null; pickingFixed = false; mode = 'ready'; motion = initialMotion();
+  if (route.points.length === 1) changeRoute([], '');
+  if (route.points.length > 1) map.fitBounds(routeLine.getBounds(), { padding: [35,35], maxZoom:17 });
+  paintSample(); syncControls(); notify('');
 };
 $('pace').onchange = () => {
   try {
@@ -304,18 +304,6 @@ $('target').onchange = () => {
 for (const input of [$('pace'), $('target')]) {
   input.onkeydown = event => { if (event.key === 'Enter') input.blur(); };
 }
-for (const button of document.querySelectorAll('[data-pace-step]')) {
-  button.onclick = () => {
-    const seconds = Math.round(3600 / route.speed) + Number(button.dataset.paceStep);
-    setSpeed(3600 / Math.max(30, Math.min(3600, seconds)));
-    $('setting-error').textContent = '';
-  };
-}
-$('rate').onchange = () => {
-  advanceTo(performance.now());
-  playbackRate = Number($('rate').value);
-  paintSample();
-};
 function loadPreset(preset) {
   drawing = false;
   changeRoute(preset.points, preset.name, { fit: true });
@@ -332,6 +320,7 @@ $('draw').onclick = () => {
   drawing = !drawing;
   pickingFixed = false;
   if (drawing) {
+    usb.release();
     fixedPoint = null;
     pause();
     paintSample();
@@ -347,7 +336,10 @@ $('close-route').onclick = () => {
     notify('已把轨迹终点连接回起点。');
   } catch (error) { notify(error.message, true); }
 };
-$('pick-fixed').onclick = () => { pickingFixed = !pickingFixed; drawing = false; if (pickingFixed) pause(); syncControls(); };
+$('pick-fixed').onclick = () => {
+  pause(); usb.release(); mode = 'ready'; pickingFixed = true; drawing = false;
+  paintSample(); syncControls();
+};
 $('undo').onclick = () => {
   if (route.points.length === 2) drawing = true;
   changeRoute(route.points.slice(0, -1), title);
@@ -409,28 +401,13 @@ function routeFragment() {
   if (!fixedPoint && fieldName) params.set('field', fieldName);
   return params.toString();
 }
-$('share').onclick = () => {
-  try {
-    const url = new URL('https://softbread1217.github.io/trace-isle/?v=13');
-    url.hash = routeFragment();
-    $('share-url').value = url.href;
-    $('share-status').textContent = '';
-    $('share-dialog').showModal();
-  } catch (error) { notify(error.message, true); }
-};
-$('copy').onclick = async () => {
-  try {
-    await navigator.clipboard.writeText($('share-url').value);
-    $('share-status').textContent = '已复制。';
-  } catch {
-    $('share-url').focus();
-    $('share-url').select();
-    $('share-status').textContent = '链接已选中，可以手动复制。';
-  }
-};
-$('share-field').onclick = () => $('share').click();
 document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
 
+const usb = setupUSB(() => fixedPoint ?? tripSample(route, motion.metres)?.point, routeFragment, () => {
+  pause();
+  if (mode === 'fixed') mode = 'ready';
+  syncControls();
+});
 changeRoute([], '');
 if (location.hash.startsWith('#route=')) {
   try {
@@ -440,24 +417,17 @@ if (location.hash.startsWith('#route=')) {
     target = shared.target ?? null;
     $('target').value = target == null ? '' : String(target / 1000);
     const field = (params.get('field') || '').slice(0,160);
-    changeRoute(sharedTrackPoints(points, field), field || '分享的测试路线', { speed, fit: true });
+    changeRoute(sharedTrackPoints(points, field), field || '已导入路线', { speed, fit: true });
     fieldName = field;
     syncControls();
-    if (field) $('school-status').textContent = '已载入分享的操场：' + field;
+    if (field) $('school-status').textContent = '已载入操场：' + field;
   } catch (error) { notify(error.message, true); }
 }
 else if (new URLSearchParams(location.search).get('preset') === 'mile-end') {
   loadPreset(QUEEN_MARY_MILE_END);
 }
 setBasemap();
-setupPairing(() => ({
-  lat: $('lat-readout').textContent, lon: $('lon-readout').textContent,
-  distance: $('distance-readout').textContent, pace: $('speed-readout').textContent,
-  mode: $('state').textContent
-}));
-const releaseOutput = setupUSB(() => fixedPoint ?? tripSample(route, motion.metres)?.point, routeFragment);
 const closePicker = setupCampusFinder({L, showRoute: () => map.invalidateSize({pan:false}), measure: points => makeRoute(points, 10).metres, use(points, name) {
-  releaseOutput?.();
   loadPreset({points, name});
   fieldName = name;
   syncControls();

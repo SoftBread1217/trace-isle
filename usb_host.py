@@ -151,9 +151,9 @@ async def control(ws):
                 await ws.close()
 
 
-ASSETS = {"index.html", "app.js", "route.js", "pair.js", "presets.js", "usb.js", "style.css", "isle.svg",
-          "vendor/leaflet.js", "vendor/leaflet.css", "vendor/peerjs.min.js", "vendor/qrcode.js",
-          "receive.html", "receive.js"}
+ASSETS = {"index.html", "app.js", "route.js", "presets.js", "usb.js", "style.css", "isle.svg",
+          "vendor/leaflet.js", "vendor/leaflet.css",
+          "receive.html"}
 
 
 async def assets(request):
