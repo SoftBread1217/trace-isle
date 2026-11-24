@@ -1,46 +1,66 @@
-[![迹屿 · Trace Isle — iOS 虚拟定位与动态轨迹模拟工具](docs/images/trace-isle-cover.png)](https://softbread1217.github.io/trace-isle/)
+<p align="center">
+  <a href="https://softbread1217.github.io/trace-isle/"><img src="docs/images/trace-isle-cover.png" width="100%" alt="迹屿 · Trace Isle，iOS 虚拟定位与动态轨迹模拟工具"></a>
+</p>
 
-# 迹屿 · Trace Isle
+<p align="center"><strong>搜到自己的校区，选一条操场跑道，让 iPhone 按设定的距离和配速移动。</strong><br>
+也可以在地图上选一个点，通过 Windows USB 助手直接修改 iPhone 系统定位。</p>
 
-**iOS 虚拟定位与动态轨迹模拟工具。** 搜学校、选校区和操场，设好距离与配速，就能通过 Windows USB 助手在 iPhone 上模拟沿跑道运动。也支持在地图上选一个固定点，直接修改 iPhone 系统定位。
+<p align="center"><kbd>Windows</kbd> &nbsp; <kbd>iOS 17.4+</kbd> &nbsp; <kbd>USB 真机连接</kbd></p>
 
-**[下载 Windows USB 助手与源码](https://github.com/SoftBread1217/trace-isle/archive/refs/heads/main.zip)** · **[打开地图找操场](https://softbread1217.github.io/trace-isle/)**
+<p align="center">
+  <strong><a href="https://softbread1217.github.io/trace-isle/">打开地图找操场 ↗</a></strong>
+  &nbsp; · &nbsp; <strong><a href="https://github.com/SoftBread1217/trace-isle/archive/refs/heads/main.zip">下载 Windows USB 助手</a></strong>
+  &nbsp; · &nbsp; <a href="#快速上手">快速上手 ↓</a>
+</p>
 
 ## 按校区找操场
 
-搜索「北邮」，可以分别选择海淀、沙河或海南校区。选择海淀校区后，列表里会出现西土城路校区田径场；海南校区使用的黎安园区共享体育场会单独标明。选择已收录的场地即可载入跑道，有些场地提供可调整的估算路线，省去沿弯道逐点描线的工夫。
+搜「北邮」，可以分别选择海淀、沙河和海南校区。选海淀，就能载入**西土城路校区田径场**；选海南，则会看到标有**园区共享**的黎安园区体育场。选好场地即可载入路线，省去沿弯道逐点描线的工夫。
 
-自动推荐会检查场地完整轮廓和初始路线是否都在所选校区的地图边界内，避免把隔壁学校的操场算进来。归属有歧义时跳过该候选；缺少校界或场地数据时，可以在地图上手动指定操场。
+| 校园数据 | 收录情况 |
+| :--- | :--- |
+| **3,598** 条学校或校区记录 | 同一所大学可以按校区分别查找 |
+| **939** 条记录关联了场地 | 可选择已收录的操场，使用地图跑道或可调整的估算路线 |
 
-2026-11-23 的索引收录 **3,598 条学校或校区记录**，其中 **939 条关联了至少一个场地**。同一所大学可有多个校区条目。[校园数据与匹配规则](campus-data/README.md)
-
-## 校园跑应用测试
-
-例如，测试校园跑 App 的跨圈里程统计时，可以选择「武汉大学 → 桂园操场」，将目标距离设为 **2 公里**、配速设为 **6:00/公里**。iPhone 会沿所选跑道逆时针模拟运动，连续模拟约 **12 分钟**后到达终点。在待测 App 中可以核对每次经过起点时里程是否连续、最终记录的轨迹是否落在操场内。用同一路线和参数再测一次，就能比较两个版本的记录结果。
+自动推荐会核对场地完整轮廓和初始路线是否都在所选校区的地图边界内，避免把隔壁学校的操场算进来。归属有歧义时会跳过该候选；缺少校界或场地数据时，可以手动指定操场。以上数字取自 2026-11-23 的索引。[校园数据与匹配规则](campus-data/README.md)
 
 ## 核心功能
 
-- **固定点定位** · 点击地图或输入经纬度，将一个位置写入 iPhone。
-- **动态模拟** · 选择校园跑道、自定义打点或导入 GPX。闭合跑道可连续绕圈，开放路线可沿原路折返。
-- **运动控制** · 自定义目标距离和每公里配速，查看实时进度，支持暂停、继续和重置。
-- **USB 设备控制** · 查看连接与同步状态，结束后可恢复真实定位。
+| 功能 | 在 iPhone 上可以做什么 |
+| :--- | :--- |
+| 📍 **固定点定位** | 点击地图或输入经纬度，把所选位置设为 iPhone 的系统定位。 |
+| 🏟️ **动态轨迹** | 选校园跑道、自定义打点或导入 GPX。闭合跑道支持逆时针绕圈，开放路线可沿原路折返。 |
+| ⏱️ **距离与配速** | 按公里设置目标距离，按分:秒/公里设置配速。模拟时可查看进度、暂停、继续或重置。 |
+| 🔌 **USB 设备控制** | 查看连接与同步状态，结束测试后恢复真实定位。 |
+
+[![迹屿的路线地图与模拟控制面板，显示伦敦玛丽女王大学 Mile End 校园步道](docs/images/mile-end-workspace.png)](https://softbread1217.github.io/trace-isle/?preset=mile-end)
 
 ## 快速上手
 
-环境：Windows、Apple Devices、Python 3.12、支持数据传输的 USB 线。iPhone 需运行 iOS 17.4 或以上版本，并能启用开发者模式。
+准备一台装有 **Apple Devices** 和 **Python 3.12** 的 Windows 电脑、一部支持开发者模式的 **iOS 17.4 或以上版本**的 iPhone，以及一根能传输数据的 USB 线。
 
-1. **连接 iPhone。** 解压项目，运行 `Start-Windows-USB.cmd` 并保持窗口打开。在[本机 USB 控制台](http://127.0.0.1:4179/)点右上角「iPhone」→「连接 USB iPhone」。解锁手机，按提示信任电脑并开启开发者模式。
-2. **选择定位模式。** 使用「固定点定位」时，点击地图或输入坐标，再点「应用固定点」。使用「动态轨迹」时，搜索学校并选择操场，点「使用这条跑道」；也可以展开「自定义路线」，在地图上打点后点「完成画线」。
-3. **设置并开始模拟。** 输入目标距离与配速，例如 `2 km`、`6:00/km`，点「开始模拟」。模拟期间保持页面在前台；暂停会停在当前位置，重置动态模拟会回到起点。结束后在 iPhone 设置弹窗点「恢复真实定位」，在手机地图确认后断开。
+1. **连接 iPhone。** 解压下载的项目，运行 `Start-Windows-USB.cmd` 并保持窗口打开。在[本机 USB 控制台](http://127.0.0.1:4179/)点右上角「iPhone」→「连接 USB iPhone」。解锁手机，按提示信任电脑并开启开发者模式。
+2. **选点或选路线。** 定点时在地图上选点或输入坐标，再点「应用固定点」。动态模拟时搜索学校、选择操场，点「使用这条跑道」；也可以展开「自定义路线」，打点后点「完成画线」。
+3. **开始动态模拟。** 填入目标距离和配速，点「开始模拟」，并保持电脑上的控制台页面在前台。暂停会停在当前位置，重置会回到起点。结束时在 iPhone 设置弹窗点「恢复真实定位」，在手机地图确认后断开。
 
-在线地图可用于规划路线。向真机写入定位时，需进入本机控制台并连接 iPhone。
+在线地图可直接用于规划路线；向真机写入位置需连接本机 USB 控制台。
 
-[![迹屿界面：固定点定位、动态轨迹、目标距离、配速及 USB 设备状态](docs/images/mile-end-workspace.png)](https://softbread1217.github.io/trace-isle/?preset=mile-end)
+## 校园跑应用测试
+
+**武汉大学 · 桂园操场**　｜　目标 **2 公里**　｜　配速 **6:00/公里**　｜　预计 **12 分钟**
+
+在 iPhone 上打开待测校园跑 App，使用这组参数沿跑道逆时针模拟。每次经过起点时，检查 App 的累计里程是否连续；结束后，将记录轨迹与操场位置对照。升级 App 后用相同路线和参数再测一次，就能比较两个版本的记录结果。
 
 ## 数据与测试
 
-校区和场地来自 [OpenStreetMap](https://www.openstreetmap.org/copyright)。校园匹配规则及数据许可见[校园数据说明](campus-data/README.md)。封面与截图使用伦敦玛丽女王大学 [Mile End 校区](https://www.qmul.ac.uk/about/howtofindus/mileend/)步道。地图引擎采用 [Leaflet](vendor/LICENSE)。
+校区和场地来自 OpenStreetMap 贡献者。校园索引可按 ODbL 1.0 复用，地图使用 Leaflet。界面截图取自伦敦玛丽女王大学 Mile End 校区步道。[地图数据署名](https://www.openstreetmap.org/copyright) · [校园数据说明](campus-data/README.md) · [Leaflet 许可](vendor/LICENSE) · [Mile End 校区](https://www.qmul.ac.uk/about/howtofindus/mileend/)
 
 ```sh
 node --test tests/*.test.mjs
 ```
+
+---
+
+<p align="center"><strong>感谢使用迹屿！</strong><br>
+如果迹屿帮你找到了学校的跑道，或帮你测好了一个定位功能，欢迎点一下仓库右上角的 <a href="https://github.com/SoftBread1217/trace-isle"><strong>☆ Star</strong></a>。<br>
+发现操场标错了？欢迎在 <a href="https://github.com/SoftBread1217/trace-isle/issues">Issues</a> 留下学校、校区和场地名称。</p>
