@@ -156,3 +156,27 @@ footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 5p
   .choices button { white-space: normal; }
   footer { display: grid; }
 }
+.guide-link, .guide-back { margin-left: auto; color: var(--accent-ink); font-weight: 600; text-decoration: none; white-space: nowrap; }
+.guide-link:hover, .guide-back:hover { text-decoration: underline; }
+.guide-link + .device-button { margin-left: 0; }
+.manual { max-width: 760px; padding: 32px 20px 56px; margin: auto; font-size: 15px; line-height: 1.75; }
+.manual-intro { padding: 8px 0 20px; }
+.manual-intro h1 { font-size: clamp(28px, 5vw, 38px); margin-bottom: 12px; }
+.manual-actions, .manual-nav { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+.manual-actions { margin-top: 18px; }
+.manual a { color: var(--accent-ink); }
+.manual a.download-action { padding: 9px 14px; border-radius: 7px; background: var(--ink); color: white; font-weight: 600; text-decoration: none; }
+.download-action small { margin-left: 6px; }
+.manual-nav { border-block: 1px solid var(--line); padding-block: 12px; font-size: 14px; }
+.manual section { margin-top: 16px; padding: clamp(16px, 3vw, 26px); background: white; border: 1px solid var(--line); border-radius: 12px; scroll-margin-top: 68px; }
+.manual h2 { font-size: 20px; margin-bottom: 12px; }
+.manual h3 { font-size: 16px; margin: 20px 0 6px; }
+.manual ol { padding-left: 1.5em; margin: 0; }
+.manual li + li { margin-top: 10px; }
+.manual code { font-family: var(--mono); font-size: .9em; overflow-wrap: anywhere; }
+.manual-note { margin-top: 14px; padding-left: 12px; border-left: 3px solid var(--green); color: var(--muted); }
+.manual details { padding: 10px 0; border-top: 1px solid var(--line); }
+.manual summary { cursor: pointer; font-weight: 600; }
+.manual details p { margin-top: 8px; }
+.manual footer { display: block; font-size: 13px; color: var(--muted); padding-block: 18px; }
+@media (max-width: 390px) { .top-inner .brand small { display: none; } }

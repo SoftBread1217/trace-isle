@@ -9,8 +9,8 @@
 
 <p align="center">
   <strong><a href="https://softbread1217.github.io/trace-isle/">打开地图找操场 ↗</a></strong>
-  &nbsp; · &nbsp; <strong><a href="https://github.com/SoftBread1217/trace-isle/archive/refs/heads/main.zip">下载 Windows USB 助手</a></strong>
-  &nbsp; · &nbsp; <a href="#快速上手">快速上手 ↓</a>
+  &nbsp; · &nbsp; <strong><a href="https://softbread1217.github.io/trace-isle/downloads/Trace-Isle-Windows-USB.zip">下载 Windows USB 助手</a></strong>
+  &nbsp; · &nbsp; <a href="https://softbread1217.github.io/trace-isle/guide.html">完整使用说明 ↗</a>
 </p>
 
 ## 按校区找操场
@@ -58,6 +58,8 @@
 ```sh
 node --test tests/*.test.mjs
 ```
+
+维护站内下载时，运行 `python tools/build_windows_helper.py` 重新打包助手；用 `python tools/build_windows_helper.py --check` 核对下载包与当前代码、说明和校区数据是否一致。
 
 ---
 

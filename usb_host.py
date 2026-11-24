@@ -11,7 +11,7 @@ from pathlib import Path
 
 import uvicorn
 from starlette.applications import Starlette
-from starlette.responses import FileResponse, Response
+from starlette.responses import FileResponse, RedirectResponse, Response
 from starlette.routing import Route, WebSocketRoute
 from starlette.websockets import WebSocketDisconnect
 from pymobiledevice3 import usbmux
@@ -153,13 +153,18 @@ async def control(ws):
 
 ASSETS = {"index.html", "app.js", "route.js", "presets.js", "usb.js", "style.css", "isle.svg",
           "vendor/leaflet.js", "vendor/leaflet.css",
-          "receive.html"}
+          "receive.html", "guide.html"}
 
 
 async def assets(request):
     name = request.path_params.get("path") or "index.html"
     dataset = re.fullmatch(r"campus-data/(?:schools|\d{1,2}_\d{1,2})\.json", name)
-    if request.headers.get("host") != ORIGIN.split("//")[1] or (name not in ASSETS and not dataset):
+    if request.headers.get("host") != ORIGIN.split("//")[1]:
+        return Response(status_code=404)
+    # A downloaded assistant can link users back to the current published package.
+    if name == "downloads/Trace-Isle-Windows-USB.zip":
+        return RedirectResponse(f"https://softbread1217.github.io/trace-isle/{name}")
+    if name not in ASSETS and not dataset:
         return Response(status_code=404)
     if not (ROOT / name).is_file():
         return Response(status_code=404)

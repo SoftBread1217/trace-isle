@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F8FAFC">
+  <meta name="description" content="从 Windows 安装、USB 连接到固定点定位、跑道模拟与恢复真实定位的迹屿使用说明。">
+  <title>使用说明 · 迹屿 Trace Isle</title>
+  <link rel="icon" href="./isle.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./style.css?v=15">
+</head>
+<body class="guide">
+  <header class="top"><div class="wrap top-inner">
+    <a class="brand" href="./"><img src="./isle.svg" width="30" height="30" alt=""><span>迹屿 <small>Trace Isle</small></span></a>
+    <a class="guide-back" href="./">返回地图</a>
+  </div></header>
+  <main class="manual">
+    <header class="manual-intro">
+      <h1>使用说明</h1>
+      <p>用手机或电脑打开地图，就能搜学校、选操场和规划路线。要让 iPhone 的系统定位跟着改变，请在一台 Windows 电脑上安装 USB 助手，用数据线连接手机。</p>
+      <div class="manual-actions"><a class="download-action" href="./downloads/Trace-Isle-Windows-USB.zip" download>下载 Windows USB 助手 <small>ZIP ↓</small></a><a href="#connect">已安装，直接连接 →</a></div>
+    </header>
+    <nav class="manual-nav" aria-label="说明目录"><a href="#install">准备电脑</a><a href="#connect">连接手机</a><a href="#simulate">设置定位</a><a href="#restore">恢复定位</a><a href="#help">常见问题</a></nav>
+
+    <section id="install"><h2>首次安装</h2>
+      <ol>
+        <li><strong>准备设备。</strong>一台 Windows 电脑、一部可启用开发者模式的 iPhone（iOS 17.4 或以上），以及一根能传输数据的 USB 线。用手机读到这里，可以把本页地址发到电脑上继续。</li>
+        <li><strong>安装两项依赖。</strong>从微软商店安装 <a href="https://apps.microsoft.com/detail/9np83lwlpz9k" target="_blank" rel="noopener">Apple Devices（Apple 设备）</a>，让 Windows 识别 iPhone。再从 <a href="https://www.python.org/downloads/release/python-31210/" target="_blank" rel="noopener">Python 官网</a>的 Files 表格选择适合电脑的 Windows installer，安装 Python 3.12 并保留 Python Launcher（<code>py</code>）选项。已安装的项目可以跳过。</li>
+        <li><strong>解压并启动助手。</strong>在本页下载 ZIP，右键选择「全部解压」。打开解压后的文件夹，双击 <code>Start-Windows-USB.cmd</code>。首次启动会联网安装所需组件，请等到浏览器自动打开，并保持助手窗口开启。</li>
+      </ol>
+    </section>
+    <section id="connect"><h2>连接 iPhone</h2>
+      <ol>
+        <li>用 USB 数据线连接一部 iPhone 并解锁。在 iPhone 上点「信任此电脑」，按提示输入锁屏密码。可以先在 Windows 的「Apple 设备」里确认手机出现在侧栏。</li>
+        <li>在<strong>同一台 Windows 电脑</strong>打开<a href="http://127.0.0.1:4179/" target="_blank" rel="noopener">本机 USB 控制台</a>，点右上角「iPhone」→「连接 USB iPhone」。按手机提示，在「设置 → 隐私与安全性 → 开发者模式」中开启。若系统要求重启，重启后解锁、确认开启，再回电脑重新连接。</li>
+        <li>右上角显示<strong>「已连接」</strong>后关掉设置弹窗。若你已在这台电脑的在线地图选好位置或路线，回到该页面点「iPhone → 打开本机 USB 控制台」可带入选择。后续在本机控制台操作。</li>
+      </ol>
+    </section>
+    <section id="simulate"><h2>设置定位</h2>
+      <h3>固定在一个位置</h3>
+      <p>点地图上方「固定点定位」，再点目标位置；或展开「定位设置 · 输入经纬度」，填入纬度、经度后点「选用此坐标」。在右侧点<strong>「应用固定点」</strong>。看到「已同步」后，打开 iPhone 自带「地图」，点当前位置按钮核对蓝点。</p>
+      <h3>沿操场或自定义路线移动</h3>
+      <ol>
+        <li><strong>选路线。</strong>搜索学校，选择校区和操场，核对地图上的路线后点「使用这条跑道」。也可以直接点「陵水体育场」试用预设，或展开「自定义路线」，点「地图画轨迹」，依次选至少两个不同位置，再点「完成画线」。至少三个不同的点可闭合路线。已有路线文件可选「导入 GPX」。</li>
+        <li><strong>填距离与配速。</strong>目标距离单位是公里，留空则按路线原长；配速填每公里用时。例如输入 <code>2</code> 和 <code>6:00</code>，模拟全程约需 12 分钟。闭合路线可连续绕圈，开放路线走到末端后会折返。</li>
+        <li><strong>开始模拟。</strong>点「开始模拟」，保持数据线连接、控制台标签页在前台。在「定位状态」查看同步状态、坐标及累计距离。切换到其他标签页会自动暂停。点「暂停」可停在当前位置，「继续模拟」接着走；动态模式下「重置」会回到路线起点。</li>
+      </ol>
+      <p class="manual-note">从手机换到电脑时，可以先在「自定义路线」中导出 GPX，将文件发到电脑，再导入本机控制台。目标距离和配速在电脑上填写。</p>
+    </section>
+    <section id="restore"><h2>结束并恢复真实定位</h2>
+      <p>保持连接，点右上角「iPhone → 恢复真实定位」，等「定位状态」显示<strong>「已恢复」</strong>。在 iPhone 地图中核对当前位置，再断开 USB、关闭助手。若意外拔线后定位仍停在模拟位置，请重新连接原来的 iPhone，再执行恢复。</p>
+    </section>
+    <section id="help"><h2>常见问题</h2>
+      <details><summary>在手机、微信或 QQ 里打开，能直接修改定位吗？</summary><p>手机浏览器可以查操场、画路线。修改真机定位时，请在连接 iPhone 的 Windows 电脑上使用本机控制台。手机上打开 127.0.0.1 只会访问手机自己。</p></details>
+      <details><summary>分享后显示 404 怎么办？</summary><p>把下面的地址单独复制成一条消息，保留末尾斜杠，去掉右括号和句号。也可粘贴到系统浏览器打开。</p><code>https://softbread1217.github.io/trace-isle/</code></details>
+      <details><summary>助手打不开，或浏览器提示本机拒绝连接？</summary><p>确认已「全部解压」，再运行其中的启动文件。提示找不到 py 或 Python 时，重新安装 Python 3.12 并启用 Launcher；若安装组件时报网络错误，请检查电脑能否访问 Python 软件包服务（PyPI），联网后重新运行。助手窗口须保持开启。若提示端口 4179 已被占用，先查看是否已有迹屿助手正在运行。</p></details>
+      <details><summary>iPhone 一直未连接，或找不到开发者模式？</summary><p>解锁手机，确认 Windows「Apple 设备」能看到它；看不到时尝试换数据线或 USB 端口。能看到时回到控制台点「连接 USB iPhone」，注意手机上的信任或开发者提示。仅有蓝牙配对无法建立 USB 连接。若提示设备被占用，请在另一个迹屿窗口断开后重试。</p></details>
+      <details><summary>地图空白，或者学校没有匹配的操场？</summary><p>在线底图需要能访问 OpenStreetMap。可先试用预设或输入经纬度。若校区缺少已核实的场地，在地图可用时点「指定操场」并调整跑道，或手绘、导入路线。助手下载包已包含校区索引。</p></details>
+      <details><summary>选了位置，手机仍显示真实位置？</summary><p>先看右上角是否「已连接」，然后在本机控制台点「应用固定点」或「开始模拟」，等到「已同步」。在 iPhone 上确认「地图」有定位权限，再点当前位置按钮。助手断开或报错时，按弹窗提示重连。</p></details>
+    </section>
+    <footer id="data">校园与场地数据 © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap 贡献者</a>，按 <a href="https://opendatacommons.org/licenses/odbl/1-0/">ODbL 1.0</a> 提供。校界和场馆轮廓用于筛选场地和估算路线。<a href="./">返回路线地图 ↑</a></footer>
+  </main>
+</body>
+</html>
